@@ -1,0 +1,13 @@
+Dear {{ user.username }},
+
+Welcome to Bloggy!
+
+To confirm your account, please click on the following link:
+
+{{ url_for('auth.confirm', token=token, _external=True) }}
+
+Sincerely,
+The Bloggy Team
+
+Note: this email address is not monitored and replies sent to it will not
+be read.

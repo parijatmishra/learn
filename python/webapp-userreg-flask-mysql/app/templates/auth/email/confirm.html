@@ -1,0 +1,8 @@
+<p>Dear {{ user.username }},</p>
+<p>Welcome to Bloggy!</p>
+<p>To confirm your account, please click on the following link:<br/>
+{{ url_for('auth.confirm', token=token, _external=True) }}</p>
+<p>Sincerely,<br/>
+The Bloggy Team</p>
+<p>Note: this email address is not monitored and replies sent to it will not
+be read.</p>
