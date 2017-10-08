@@ -124,3 +124,23 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+# nose test tool output
+nosetests.xml
+
+# Mr Developer
+.mr.developer.cfg
+.project
+.pydevproject
+
+# SQLite databases
+*.sqlite
+
+# Sublime text
+*.sublime-project
+*.sublime-workspace
+
+# Emacs backup files
+.#.*
+*.*~
+*~
