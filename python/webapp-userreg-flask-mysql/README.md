@@ -1,10 +1,12 @@
 # simple-python-app
 
-A simple Flask based web application.
+A simple Flask based web application that does user registrations, sends
+emails, and stores data in a SQL database (supports SQLite or MySQL).
 
 ## Dependencies
 
-The application requires this other software:
+The application requires this other software to run in production mode and run
+integration tests:
 
  - MySQL
 
