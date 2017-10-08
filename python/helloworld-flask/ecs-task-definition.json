@@ -1,0 +1,17 @@
+{
+    "family": "flaskhello",
+    "containerDefinitions": [
+        {
+            "name": "flaskhello",
+            "image": "parijatmishra/flaskhello:v1",
+            "portMappings": [
+                {
+                    "containerPort": 8000,
+                    "hostPort": 80
+                }
+            ],
+            "memory": 128,
+            "essential": true
+        }
+    ]
+}
