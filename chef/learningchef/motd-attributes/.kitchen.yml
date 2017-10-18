@@ -1,0 +1,17 @@
+---
+driver:
+  name: vagrant
+
+provisioner:
+  name: chef_zero
+
+platforms:
+  - name: centos-7.1
+    driver:
+      box: chef-client-centos-7.1
+
+suites:
+  - name: default
+    run_list:
+      - recipe[motd-attributes::default]
+    attributes:

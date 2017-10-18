@@ -1,0 +1,16 @@
+---
+driver:
+  name: vagrant
+
+provisioner:
+  name: chef_solo
+
+platforms:
+  - name: centos-7.1
+    driver:
+      box: bento/centos-7.1
+
+suites:
+  - name: default
+    run_list:
+    attributes:
