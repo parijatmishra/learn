@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html layout:decorator="_layout">
+<body>
+<div layout:fragment="content" th:remove="tag">
+    <h2>SpEL expressions</h2>
+    <table class="table table-striped">
+        <tr>
+            <th>Expression</th>
+            <th>th:text</th>
+        </tr>
+        <tr>
+            <td>'Hello World\'s'</td>
+            <td th:text="'Hello World\'s'"></td>
+        </tr>
+        <tr>
+            <td>6.022E+23</td>
+            <td th:text="6.022E+23"></td>
+        </tr>
+        <tr>
+            <td>1 + 2 / 3</td>
+            <td th:text="1 + 2 / 3"></td>
+        </tr>
+        <tr>
+            <td>#{message1}</td>
+            <td th:text="#{message1}"></td>
+        </tr>
+        <tr>
+            <td>#{message2}</td>
+            <td th:text="#{message2}"></td>
+        </tr>
+        <tr>
+            <td>#{message2} <small>with <code>th:utext</code></small></td>
+            <td th:utext="#{message2}"></td>
+        </tr>
+        <tr>
+            <td>#{message3('Parijat')}</td>
+            <td th:text="#{message3('Parijat')}"></td>
+        </tr>
+        <tr>
+            <td>#{message3(${bean.name})}</td>
+            <td th:text="#{message3(${bean.name})}"></td>
+        </tr>
+        <tr>
+            <td>${text}</td>
+            <td th:text="${text}"></td>
+        </tr>
+        <tr>
+            <td>${bean.name}</td>
+            <td th:text="${bean.name}"></td>
+        </tr>
+        <tr>
+            <td>${bean.someBean.name}</td>
+            <td th:text="${bean.someBean.name}"></td>
+        </tr>
+        <tr>
+            <td>${bean.now}</td>
+            <td th:text="${bean.now}"></td>
+        </tr>
+        <tr>
+            <td>${#dates.format(bean.now, 'dd/MMM/yyyy HH:mm')}</td>
+            <td th:text="${#dates.format(bean.now, 'dd/MMM/yyyy HH:mm')}"></td>
+        </tr>
+        <tr>
+            <td>${bean.address[0]}</td>
+            <td th:text="${bean.address[0]}"></td>
+        </tr>
+        <tr>
+            <td>${bean.sayHello('Parijat')}</td>
+            <td th:text="${bean.sayHello('Parijat')}"></td>
+        </tr>
+        <tr>
+            <td>${bean.name.startsWith('Nicola')}</td>
+            <td th:text="${bean.name.startsWith('Nicola')}"></td>
+        </tr>
+        <tr>
+            <td>${true and false}</td>
+            <td th:text="${true and false}"></td>
+        </tr>
+        <tr>
+            <td>${bean.address.size() > 2}</td>
+            <td th:text="${bean.address.size() > 2}"></td>
+        </tr>
+        <tr>
+            <td>${bean.name = 'Isaac Newton'}</td>
+            <td th:text="${bean.name = 'Isaac Newton'}"></td>
+        </tr>
+        <tr>
+            <td>${bean.name}</td>
+            <td th:text="${bean.name}"></td>
+        </tr>
+    </table>
+
+    <h2>Property access using asterisk syntax</h2>
+    <div th:object="${bean}">
+        <p>Name: <span th:text="*{name}"></span></p>
+        <p>Now: <span th:text="*{now}"></span></p>
+    </div>
+
+    <h2>Iteration</h2>
+    <ul th:each="line,iterStat : ${bean.address}" class="list-group">
+        <li th:text="${iterStat.count + ' - ' + line}" class="list-group-item"></li>
+    </ul>
+
+
+    <h2>Conditional Inclusion</h2>
+    <p th:if="${true}" th:text="'This should show up'"></p>
+    <p th:text="'This will also show up'" th:unless="${false}"></p>
+    <p th:if="${false}" th:text="Error!">This element should not be rendered.</p>
+
+</div><!-- /.container -->
+</body>
+</html>

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml"
+      xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://thymeleaf.ultraq.net.nz">
+<head>
+    <meta charset="utf-8"/>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1"/>
+    <title th:text="#{app.name} + '|' + ${pageTitle}">App Name | Page Title</title>
+    <link rel="stylesheet"
+          href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css"
+          th:href="@{/webjars/bootstrap/3.3.6/css/bootstrap.min.css}"
+          crossorigin="anonymous"
+    />
+</head>
+<body>
+<div class="container">
+    <div class="page-header">
+        <h1 th:text="${pageTitle}">Page Title</h1>
+    </div><!-- /.page-header -->
+
+    <!--/* Your Content Comes Here */-->
+    <div layout:fragment="content">
+        Some default content.
+    </div>
+</div>
+
+<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"
+        crossorigin="anonymous"
+        th:src="@{/webjars/jquery/1.11.1/jquery.min.js}"
+></script>
+<!-- Include all compiled plugins (below), or include individual files as needed -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.5/js/bootstrap.min.js"
+        crossorigin="anonymous"
+        th:src="@{/webjars/bootstrap/3.3.6/js/bootstrap.min.js}"
+></script>
+</body>
+</html>
