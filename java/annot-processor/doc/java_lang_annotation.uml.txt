@@ -1,0 +1,27 @@
+@startuml
+package java.lang.annotation {
+
+enum ElementType {
+    .. Declaration locations ..
+    ANNOTATION_TYPE
+    CONSTRUCTOR
+    FIELD
+    LOCAL_VARIABLE
+    METHOD
+    PACKAGE
+    PARAMETER
+    TYPE
+    TYPE_PARAMETER
+
+    .. Type use locations ..
+    TYPE_USE
+}
+annotation Target --> "*" ElementType
+annotation Retention --> RetentionType
+enum RetentionType {
+    CLASS
+    RUNTIME
+    SOURCE
+}
+}
+@enduml

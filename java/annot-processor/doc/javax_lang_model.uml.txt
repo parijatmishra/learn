@@ -1,0 +1,163 @@
+@startuml
+package javax.lang.model {
+    interface AnnotatedConstruct {
+        getAnnotationsByType(class): [Annotation]
+    }
+    note left of AnnotatedConstruct : Something that can be annotated
+
+    package javax.lang.model.element {
+        interface Element {
+            getSimpleName(): Name
+            getModifiers(): Set<Modifier>
+
+            asType(): TypeMirror
+            getKind(): ElementKind
+
+            getAnnotation(class): Annotation
+            getAnnotationMirrors(): [AnnotationMirror]
+
+            getEnclosingElement(): Element
+            getEnclosedElements(): [Element]
+        }
+        Element --|> AnnotatedConstruct
+        note left of Element : a program element\npackage, class, method, ...
+
+        interface QualifiedNameable {
+            getQualifiedName(): Name
+        }
+        QualifiedNameable --|> Element
+
+        interface Parameterizable {
+            getTypeParameters(): [TypeParameterElement]
+        }
+        Parameterizable --|> Element
+
+        TypeElement --|> Element
+        TypeElement --|> QualifiedNameable
+        TypeElement --|> Parameterizable
+        interface TypeElement {
+            getInterfaces(): [TypeMirror]
+            getNestingKind(): NestingKind
+            getQualifiedName(): Name
+            getSuperClass(): TypeMirror
+            getTypeParameters(): [TypeParameterElement]
+        }
+
+        interface TypeParameterElement {
+            getBounds(): [TypeMirror]
+            getEnclosingElement(): same as getGenericElement
+            getGenericElement(): Element
+        }
+
+        ExecutableElement --|> Element
+        ExecutableElement --|> Parameterizable
+        interface ExecutableElement
+
+        interface PackageElement
+        PackageElement --|> Element
+        PackageElement --|> QualifiedNameable
+
+        interface VariableElement {
+            getSimpleName(): Name
+        }
+        VariableElement --|> Element
+
+        interface Name
+        interface AnnotationMirror {
+            getAnnotationType(): DeclaredType
+            getElementValues(): Map<ExecutableElement, AnnotationValue>
+        }
+
+        interface AnnotationValue
+
+        enum ElementKind {
+        ANNOTATION_TYPE
+        CLASS
+        CONSTRUCTOR
+        ENUM
+        ENUM_CONSTANT
+        EXCEPTION_PARAMETER
+        FIELD
+        INSTANCE_INIT
+        INTERFACE
+        LOCAL_VARIABLE
+        METHOD
+        OTHER
+        PACKAGE
+        PARAMETER
+        RESOURCE_VARIABLE
+        STATIC_INIT
+        TYPE_PARAMETER
+        }
+
+        enum Modifier {
+        ABSTRACT
+        DEFAULT
+        FINAL
+        NATIVE
+        PRIVATE
+        PROTECTED
+        PUBLIC
+        STATIC
+        STRICTFP
+        SYNCHRONIZED
+        TRANSIENT
+        VOLATILE
+        }
+
+        enum NestringKind {
+        ANONYMOUS
+        LOCAL
+        MEMBER
+        TOP_LEVEL
+        }
+    }
+
+    package javax.lang.model.type {
+        note left of TypeMirror : the type of an Element
+        TypeMirror --|> AnnotatedConstruct
+        interface TypeMirror {
+            getKind(): TypeKind
+        }
+        
+        interface ReferenceType --|> TypeMirror
+        interface ArrayType --|> ReferenceType
+        interface DeclaredType --|> ReferenceType
+        note right of DeclaredType : class/interface
+        interface ErrorType --|> DeclaredType
+        note top of ErrorType : class/intf could\nnot be modeled
+        interface NullType --|> ReferenceType
+        note top of NullType : type of "null" expr
+        interface TypeVariable --|> ReferenceType
+
+        enum TypeKind {
+        ARRAY
+        BOOLEAN
+        BYTE
+        CHAR
+        DECLARED
+        DOUBLE
+        ERROR
+        EXECUTABLE
+        FLOAT
+        INT
+        INTERSECTION
+        LONG
+        NONE
+        NULL
+        OTHER
+        PACKAGE
+        SHORT
+        TYPEVAR
+        UNION
+        VOID
+        WILDCARD
+        }
+    }
+    
+    package javax.lang.model.util {
+        interface Elements
+        interface Types
+    }
+}
+@enduml

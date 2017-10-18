@@ -1,0 +1,67 @@
+# DONE
+- String IDs -- generated
+- methods:
+    - Repository:       HTTP API
+    - create:           POST on collection
+    - list:             GET on collection: pagination: startId, requestedCount
+    - get:              GET on item
+    - replace:          PUT on item
+    - delete:           DELETE on item
+- property: single-valued, mandatory, reference type (String, Boolean, Long, Double)
+- proper error messages when get(), replace(), or delete() on non-existent node
+- proper error messages when route called with incorrect/not supported HTTP method
+- proper error messages when route called with Accept: header not set to application/json
+- proper error messages when route called with Content-Type: header not set to application/json (where it makes sense)
+- property: single-valued, optional
+- translate Neo4J exceptions to ApiException? No: what exceptions would be other than 500 Internal Server Error cases?
+    - connection: 503 Service Unavailable
+    - everything else: 500
+- property: multi-valued:
+    List<T>: is never null, and defaults to empty
+- index: on ID
+- index: on properties (to be annotated with @Searchable)
+- Exception stack trace logging for internal exceptions
+- Hide internal exception from client -- give simple error messages
+
+# IN PROGRESS
+- relationships: unidirectional: singular, mandatory
+    - related entity: UniRelMandatoryEntity
+
+# TODO
+- relationships: unidirectional: singular, optional
+- relationships: unidirectional: collection
+- relationships: bi-directional: singular, mandatory; reverse: singular, optional
+- relationships: bi-directional: singular, optional; reverse: singular, optional
+- relationships: bi-directional: collection; reverse: singular, optional
+- relationships: bi-directional: singular, mandatory; reverse: collection
+- relationships: bi-directional: collection; reverse: collection
+
+- search: handle search on each param and relationship
+- search: define how to handle nulls
+- converters: arbitrary reference types and converters
+- uniqueness constraints:
+    - exception
+    - on single mandatory property
+    - on single valued mandatory relationship
+    - on multiple mandatory properties
+    - on multiple single valued mandatory relationships and properties
+    - define how to handle optional properties: when they are null, are they considered (as null?) or are they ignored
+- validation constraints: exception
+- range constraints on numeric types
+- length constraint on strings
+- regex constraints on strings
+- handle static files
+- config mechanism
+  - vertx-web: port
+  - vertx-web: http options?
+  - vertx-web: worker pool size
+  - neo4j driver session pool size
+  - neo4j driver session pool behavior
+  - neo4j driver authentication strategies and auth credentials
+  - neo4j driver logging
+- support SSL
+- request IDs
+- db.session(): Use AccessMode for optimization?
+- methods:
+    - Repository:       HTTP API
+    - DEFER: update:    PATCH on item -- not required? PUT / replace can be sufficient?

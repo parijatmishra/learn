@@ -1,0 +1,13 @@
+<configuration>
+    <timestamp key="ts" datePattern="yyyy-MM-dd'T'HH:mm:ss.SSS"/>
+    <appender name="file" class="ch.qos.logback.core.FileAppender">
+        <file>SLF4JBencharmark_${ts}.log</file>
+        <encoder>
+            <pattern>[%d] [%-5level] [%logger{36}] %msg%n</pattern>
+        </encoder>
+
+    </appender>
+    <logger name="net.nihilanth.demo.benchmarks.logging.SLF4JBenchmark" level="info">
+        <appender-ref ref="file"/>
+    </logger>
+</configuration>
