@@ -1,0 +1,420 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09"
+    , "Description" : "VPC, 2 pub and 2 priv subnets, across 2 AZs. NAT/Bastion inst in 1 pub AZ."
+
+    , "Parameters" : {
+
+        "SSHKeypair": {
+            "Type" : "AWS::EC2::KeyPair::KeyName"
+            , "Description" : "EC2 Keypair, to allow SSH access to NAT/bastion host."
+            , "ConstraintDescription" : "Must be the name of an existing EC2 keypair."
+        }
+
+        , "SSHLocation" : {
+            "Description" : "Lockdown SSH access to the bastion host (default: can be accessed from anywhere)",
+            "Type" : "String",
+            "MinLength": "9",
+            "MaxLength": "18",
+            "Default" : "0.0.0.0/0",
+            "AllowedPattern" : "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})",
+            "ConstraintDescription" : "must be a valid CIDR range of the form x.x.x.x/x."
+        }
+    }
+
+    , "Mappings" : {
+
+        "NetworkConfig" : {
+            "VPC"                : {"CIDR": "10.0.0.0/16"}
+            , "SubnetPublic1"    : {"CIDR": "10.0.0.0/24"}
+            , "SubnetPrivate1"   : {"CIDR": "10.0.1.0/24"}
+            , "SubnetPublic2"    : {"CIDR": "10.0.128.0/24"}
+            , "SubnetPrivate2"   : {"CIDR": "10.0.129.0/24"}
+        }
+
+        , "NATAWSRegion2ArchAMI" : {
+            "us-east-1" : {"HVM64" : "ami-303b1458"}
+        }
+
+    }
+
+    , "Resources" : {
+        "VPC" : {
+            "Type": "AWS::EC2::VPC"
+            , "Properties" : {
+                "EnableDnsSupport" : "true"
+                , "EnableDnsHostnames" : "true"
+                , "CidrBlock" : { "Fn::FindInMap" : [ "NetworkConfig", "VPC", "CIDR" ] }
+                , "Tags" : [
+                      { "Key" : "Name", "Value" : { "Ref" : "AWS::StackName" } }
+                ]
+            }
+        }
+
+        , "InternetGateway" : {
+            "Type" : "AWS::EC2::InternetGateway"
+            , "Metadata" : {
+                "Comment" : "IGW for this VPC"
+                , "SeeAlso" : "VPCGatewayAttachment"
+            }
+            , "Properties" : {
+                "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "igw"
+                            ]]
+                        }
+                    }
+                ]
+            }
+        }
+
+        , "VPCGatewayAttachment" : {
+            "Type" : "AWS::EC2::VPCGatewayAttachment"
+            , "Metadata" : {
+                "Comment" : "Required to attach InternetGateway to VPC"
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC" }
+                , "InternetGatewayId" : { "Ref" : "InternetGateway" }
+            }
+        }
+
+        , "SubnetPublic1" : {
+            "Type" : "AWS::EC2::Subnet"
+            , "Metadata" : {
+                "Comment" : "Public subnet, AZ-1"
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC"}
+                , "CidrBlock" : { "Fn::FindInMap" : [ "NetworkConfig", "SubnetPublic1", "CIDR" ] }
+                , "AvailabilityZone" : {
+                    "Fn::Select" : ["0", { "Fn::GetAZs" : "" } ]
+                }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "pub-1"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "SubnetPublic2" : {
+            "Type" : "AWS::EC2::Subnet"
+            , "Metadata" : {
+                "Comment" : "Public subnet, AZ-2"
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC"}
+                , "CidrBlock" : { "Fn::FindInMap" : [ "NetworkConfig", "SubnetPublic2", "CIDR" ] }
+                , "AvailabilityZone" : {
+                    "Fn::Select" : ["1", { "Fn::GetAZs" : "" } ]
+                }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "pub-2"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "SubnetPrivate1" : {
+            "Type" : "AWS::EC2::Subnet"
+            , "Metadata" : {
+                "Comment" : "Private subnet, AZ-1"
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC"}
+                , "CidrBlock" : { "Fn::FindInMap" : [ "NetworkConfig", "SubnetPrivate1", "CIDR" ] }
+                , "AvailabilityZone" : {
+                    "Fn::Select" : ["0", { "Fn::GetAZs" : "" } ]
+                }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "priv-1"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "SubnetPrivate2" : {
+            "Type" : "AWS::EC2::Subnet"
+            , "Metadata" : {
+                "Comment" : "Private subnet, AZ-2"
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC"}
+                , "CidrBlock" : { "Fn::FindInMap" : [ "NetworkConfig", "SubnetPrivate2", "CIDR" ] }
+                , "AvailabilityZone" : {
+                    "Fn::Select" : ["1", { "Fn::GetAZs" : "" } ]
+                }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "priv-2"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "RouteViaIGWTable" : {
+            "Type" : "AWS::EC2::RouteTable"
+            , "Metadata" : {
+                "Comment" : "Route table for public subnets"
+                , "SeeAlso" : ["RouteViaIGW", "SubnetRouteTableAssociationPublic1"]
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC" }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "pub"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "RouteViaIGW" : {
+            "Type" : "AWS::EC2::Route"
+            , "Metadata" : {
+                "Comment" : "Default route to IGW."
+                , "SeeAlso" : ["RouteViaIGWTable", "SubnetRouteTableAssociationPublic1"]
+            }
+            , "Properties" : {
+                "RouteTableId" : { "Ref" : "RouteViaIGWTable" }
+                , "GatewayId"  : { "Ref" : "InternetGateway" }
+                , "DestinationCidrBlock" : "0.0.0.0/0"
+            }
+        }
+
+        , "SubnetRouteTableAssociationPublic1" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            , "Metadata" : {
+                "Comment" : "Glues RouteViaIGWTable to SubnetPublic1"
+            }
+            , "Properties" : {
+                "SubnetId" : { "Ref" : "SubnetPublic1" }
+                , "RouteTableId" : { "Ref" : "RouteViaIGWTable" }
+            }
+        }
+
+        , "SubnetRouteTableAssociationPublic2" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            , "Metadata" : {
+                "Comment" : "Glues RouteViaIGWTable to SubnetPublic2"
+            }
+            , "Properties" : {
+                "SubnetId" : { "Ref" : "SubnetPublic2" }
+                , "RouteTableId" : { "Ref" : "RouteViaIGWTable" }
+            }
+        }
+
+        , "NATEC2SecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup"
+            , "Metadata" : {
+                "Comment" : "Access rules for NATBastionEC2Instance"
+            }
+            , "Properties" : {
+                "GroupDescription" : "Access rules for NAT+Bastion instance"
+                , "VpcId" : { "Ref" : "VPC" }
+                , "SecurityGroupIngress" : [
+                    {
+                        "IpProtocol" : "-1"
+                        , "FromPort" : "0"
+                        , "ToPort"   : "65535"
+                        , "CidrIp"   : { "Fn::FindInMap" : [ "NetworkConfig", "VPC", "CIDR" ] }
+                    }
+                    , {
+                        "IpProtocol" : "tcp"
+                        , "FromPort" : "22"
+                        , "ToPort"   : "22"
+                        , "CidrIp"   : { "Ref" : "SSHLocation" }
+                    }
+                ]
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "nat-ssh-sg"
+                            ]]
+                        }
+                    }
+                ]               
+            }
+        }
+
+        , "NATBastionEC2Instance" : {
+            "Type" : "AWS::EC2::Instance"
+            , "DependsOn" : "VPCGatewayAttachment"
+            , "Metadata" : {
+                "Comment" : "An EC2 instance that acts as a NAT GW as well as SSH host"
+                , "TODO"  : "Let user choose type; update type 2 arch map; arch 2 ami map"
+                , "Note"  : "DependsOn=VPCGatewayAttachment is required due to public IP"
+            }
+            , "CreationPolicy" : {
+                "ResourceSignal" : {
+                    "Timeout" : "PT5M"
+                }
+            }
+            , "Properties" : {
+                "InstanceType" : "t2.micro"
+                , "KeyName" : { "Ref" : "SSHKeypair" }
+                , "ImageId" : { "Fn::FindInMap" : [ "NATAWSRegion2ArchAMI", { "Ref" : "AWS::Region" }, "HVM64" ] }
+                , "NetworkInterfaces" : [{
+                    "GroupSet"  : [{ "Ref" : "NATEC2SecurityGroup" }]
+                    , "AssociatePublicIpAddress" : "true"
+                    , "DeviceIndex" : "0"
+                    , "DeleteOnTermination" : "true"
+                    , "SubnetId" : { "Ref" : "SubnetPublic1" }
+                }]
+                , "SourceDestCheck" : "false"
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "nat"
+                            ]]
+                        }
+                    }
+                ],
+                "UserData" : { "Fn::Base64" : { "Fn::Join" : ["", [
+                    "#!/bin/bash -xe\n"
+                    , "yum update -y aws-cfn-bootstrap\n"
+
+                    , "pip install --upgrade awscli\n"
+
+                    , "# Signal the CreationPolicy with the exit status of last command\n"
+                    , "/opt/aws/bin/cfn-signal -e $?"
+                    , " --stack ", { "Ref" : "AWS::StackName" }
+                    , " --resource NATBastionEC2Instance"
+                    , " --region ", { "Ref" : "AWS::Region" }
+                    , "\n"
+                ]]}}
+            }
+        }
+
+        , "RouteViaNATTable" : {
+            "Type" : "AWS::EC2::RouteTable"
+            , "Metadata" : {
+                "Comment" : "Route table for private subnets that need internet access"
+                , "SeeAlso" : ["RouteViaNAT", "SubnetRouteTableAssociationPrivate1"]
+            }
+            , "Properties" : {
+                "VpcId" : { "Ref" : "VPC" }
+                , "Tags" : [
+                    {
+                        "Key" : "Name",
+                        "Value" : {
+                            "Fn::Join" : [ "-", [
+                                { "Ref" : "AWS::StackName" }
+                                , "nat"
+                            ]]
+                        }
+                    }
+                ]                
+            }
+        }
+
+        , "RouteViaNAT" : {
+            "Type" : "AWS::EC2::Route"
+            , "Metadata" : {
+                "Comment" : "Default route to IGW."
+                , "SeeAlso" : ["RouteViaNATTable", "SubnetRouteTableAssociation-Pub-1 and -2"]
+            }
+            , "Properties" : {
+                "RouteTableId" : { "Ref" : "RouteViaNATTable" }
+                , "InstanceId"  : { "Ref" : "NATBastionEC2Instance" }
+                , "DestinationCidrBlock" : "0.0.0.0/0"
+            }
+        }
+
+        , "SubnetRouteTableAssociationPrivate1" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            , "Metadata" : {
+                "Comment" : "Glues RouteViaNATTable to SubnetPrivate1"
+            }
+            , "Properties" : {
+                "SubnetId" : { "Ref" : "SubnetPrivate1" }
+                , "RouteTableId" : { "Ref" : "RouteViaNATTable" }
+            }
+        }
+
+        , "SubnetRouteTableAssociationPrivate2" : {
+            "Type" : "AWS::EC2::SubnetRouteTableAssociation"
+            , "Metadata" : {
+                "Comment" : "Glues RouteViaNATTable to SubnetPrivate2"
+            }
+            , "Properties" : {
+                "SubnetId" : { "Ref" : "SubnetPrivate2" }
+                , "RouteTableId" : { "Ref" : "RouteViaNATTable" }
+            }
+        }
+
+    }
+
+    , "Outputs": {
+        "VPCId" : {
+            "Description" : "ID of the newly created VPC"
+            , "Value" : { "Ref" : "VPC" }
+        }
+        , "NATEC2InstanceAddress" : {
+            "Description" : "IP Address of bastion host"
+            , "Value" : { "Fn::GetAtt" : [ "NATBastionEC2Instance", "PublicIp" ] }
+        }
+        , "SubnetPublic1" : {
+            "Description" : "First public subnet ID"
+            , "Value" : { "Ref" : "SubnetPublic1" }
+        }
+        , "SubnetPublic2" : {
+            "Description" : "Second public subnet ID"
+            , "Value" : { "Ref" : "SubnetPublic2" }
+        }
+        , "SubnetPrivate1" : {
+            "Description" : "First private subnet ID"
+            , "Value" : { "Ref" : "SubnetPrivate1" }
+        }
+        , "SubnetPrivate2" : {
+            "Description" : "Second private subnet ID"
+            , "Value" : { "Ref" : "SubnetPrivate2" }
+        }
+
+        , "NATEC2SecurityGroup" : {
+            "Description" : "Security Group of NAT+SSH instance"
+            , "Value" : { "Ref" : "NATEC2SecurityGroup" }
+        }
+    }
+}

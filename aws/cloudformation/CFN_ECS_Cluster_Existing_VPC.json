@@ -1,0 +1,265 @@
+{
+    "AWSTemplateFormatVersion" : "2010-09-09"
+    , "Description" : "Create an ECS Cluster in an existing VPC with private subnets and a NAT.  The ECS cluster can only pull images from the public Docker repository because it does not ask for any private docker registry credentials."
+
+    , "Parameters" : {
+        "SSHKeyname" : {
+            "Type" : "AWS::EC2::KeyPair::KeyName"
+            , "Description" : "The name of a key pair to use to allow SSH access to container instances."
+        }
+
+        , "VPCId" : {
+            "Type" : "AWS::EC2::VPC::Id"
+            , "Description" : "The ID of the VPC in which to create the ECS cluster"
+            , "ConstraintDescription" : "Must be the VPD ID of an existing VPC"
+        }
+
+        , "BastionSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup::Id"
+            , "Description" : "The ID of security group of a bastion host, from which container instances can be accessed by SSH"
+            , "ConstraintDescription" : "Must be the ID of an existing security group in the VPC"
+        }
+
+        , "InstanceType" : {
+            "Type": "String"
+            , "Default": "t2.micro"
+            , "AllowedValues": [ "t2.micro", "t2.small","t2.medium","m3.medium","m3.large","m3.xlarge","m3.2xlarge","c4.large","c4.xlarge","c4.2xlarge","c4.4xlarge","c4.8xlarge","c3.large","c3.xlarge","c3.2xlarge","c3.4xlarge","c3.8xlarge","r3.large","r3.xlarge","r3.2xlarge","r3.4xlarge","r3.8xlarge","i2.xlarge","i2.2xlarge","i2.4xlarge","i2.8xlarge" ]
+            , "ConstraintDescription": "An HVM capable instance type."
+        }
+
+        , "PrivateSubnets" : {
+            "Type" : "List<AWS::EC2::Subnet::Id>"
+            , "Description" : "List of (private) subnets in which to launch ECS container instances"
+            , "ConstraintDescription" : "Must be a comma-separated list of existing subnet IDs."
+        }
+
+        , "MaxCapacity" : {
+            "Type" : "Number"
+            , "Description" : "Maximum number of ECS container instances in the auto scaling group"
+            , "Default": "4"
+        }
+
+        , "DesiredCapacity" : {
+            "Type" : "Number"
+            , "Description" : "Desired number of ECS container instances in the auto scaling group"
+            , "Default": "2"
+        }
+    }
+
+    , "Mappings" : {
+        "AWSRegion2ArchAMI" : {
+            "us-east-1"         : { "HVM64" : "ami-4fe4852a" }
+            , "us-west-1"       : { "HVM64" : "ami-2708f363" }
+            , "us-west-2"       : { "HVM64" : "ami-8bd4c7bb" }
+            , "eu-west-1"       : { "HVM64" : "ami-bd5572ca" }
+            , "ap-northeast-1"  : { "HVM64" : "ami-ce2ba4ce" }
+            , "ap-southeast-2"  : { "HVM64" : "ami-3f531f05" }
+        }
+    }
+
+    , "Resources" : {
+        "Cluster" : {
+            "Type" : "AWS::ECS::Cluster"
+            , "Metadata" : {
+                "Comment" : "A new, empty ECS Cluster"
+            }
+        }
+
+        , "ServiceRole" : {
+            "Type" : "AWS::IAM::Role"
+            , "Metadata" : {
+                "Comment" : "Role to let the ECS service execute actions on ELBs and SGs"
+            }
+            , "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17"
+                    , "Statement" : [{
+                        "Effect" : "Allow"
+                        , "Principal" : { "Service" : [ "ecs.amazonaws.com" ] }
+                        , "Action" : [ "sts:AssumeRole" ]
+                    }]
+                }
+                , "ManagedPolicyArns" : [
+                    "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole"
+                ]
+            }
+        }
+
+        , "InstanceRole" : {
+            "Type" : "AWS::IAM::Role"
+            , "Metadata" : {
+                "Comment" : "Role to let ECS Container Instances register themselves with the cluster"
+            }
+            , "Properties" : {
+                "AssumeRolePolicyDocument" : {
+                    "Version" : "2012-10-17"
+                    , "Statement" : [ {
+                        "Effect": "Allow"
+                        , "Principal" : { "Service": [ "ec2.amazonaws.com" ] }
+                        , "Action": [ "sts:AssumeRole" ]
+                    }]
+                }
+                , "ManagedPolicyArns" : [
+                    "arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceforEC2Role"
+                ]
+            }
+        }
+
+        , "InstanceProfile" : {
+            "Type" : "AWS::IAM::InstanceProfile"
+            , "Metadata" : {
+                "Comment" : "EC2 instances need an IAM InstanceProfile to attach them to IAM roles."
+            }
+            , "Properties" : {
+                "Roles" : [ { "Ref" : "InstanceRole" } ]
+            }
+        }
+
+        , "InternalELBSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup"
+            , "Metadata" : {
+                "Comment" : "Internal ELBs: Allow access to port 80"
+            }
+            , "Properties" : {
+                "GroupDescription" : "Internal ELBs: allow access to :80 from anywhere"
+                , "VpcId" : { "Ref" : "VPCId" }
+                , "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp"
+                    , "FromPort" : "80"
+                    , "ToPort" : "80"
+                    , "CidrIp" : "0.0.0.0/0"
+                }]
+                , "Tags" : [
+                    {
+                        "Key" : "Name"
+                        , "Value" : { "Fn::Join" : ["-",
+                            [ { "Ref" : "AWS::StackName" }, "internalELB" ] ]}
+                    }
+                ]                
+            }
+        }
+
+        , "ExternalELBSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup"
+            , "Metadata" : {
+                "Comment" : "External ELBs: Allow access to port 80 and 443"
+            }
+            , "Properties" : {
+                "GroupDescription" : "External ELBs: allow access to :80, :443 from anywhere"
+                , "VpcId" : { "Ref" : "VPCId" }
+                , "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp"
+                    , "FromPort" : "80"
+                    , "ToPort" : "80"
+                    , "CidrIp" : "0.0.0.0/0"
+                }, {
+                    "IpProtocol" : "tcp"
+                    , "FromPort" : "443"
+                    , "ToPort" : "443"
+                    , "CidrIp" : "0.0.0.0/0"
+                }]
+                , "Tags" : [
+                    {
+                        "Key" : "Name"
+                        , "Value" : { "Fn::Join" : ["-",
+                            [ { "Ref" : "AWS::StackName" }, "externalELB" ] ]}
+                    }
+                ]                
+            }
+        }
+
+        , "InstanceSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup"
+            , "Metadata" : {
+                "Comment" : "SSH access from Bastion SG"
+            }
+            , "Properties" : {
+                "GroupDescription" : "ECS Container Instance"
+                , "VpcId" : { "Ref" : "VPCId" }
+                , "SecurityGroupIngress" : [{
+                    "IpProtocol" : "tcp"
+                    , "FromPort" : "22"
+                    , "ToPort" : "22"
+                    , "SourceSecurityGroupId" : { "Ref" : "BastionSecurityGroup" }
+                }]
+                , "Tags" : [
+                    {
+                        "Key" : "Name"
+                        , "Value" : { "Fn::Join" : ["-",
+                            [ { "Ref" : "AWS::StackName" }, "container" ] ]}
+                    }
+                ]
+            }
+        }
+
+        , "ECSLaunchConfig" : {
+            "Type" : "AWS::AutoScaling::LaunchConfiguration"
+            , "DependsOn" : "Cluster"
+            , "Properties" : {
+                "ImageId": { "Fn::FindInMap" : [ "AWSRegion2ArchAMI", { "Ref" : "AWS::Region" }, "HVM64" ] }
+                , "InstanceType": { "Ref": "InstanceType" }
+                , "AssociatePublicIpAddress": false
+                , "IamInstanceProfile": { "Ref": "InstanceProfile" }
+                , "KeyName": { "Ref": "SSHKeyname" }
+                , "SecurityGroups": [{ "Ref": "InstanceSecurityGroup" }]
+                , "UserData" : {
+                    "Fn::Base64" : { "Fn::Join": ["", [
+                        "#!/bin/bash\n"
+                        , "echo ECS_CLUSTER=", { "Ref": "Cluster" }, " >> /etc/ecs/ecs.config\n"
+                    ] ] }
+                }
+            }
+        }
+
+        , "ECSAutoScalingGroup" : {
+            "Type" : "AWS::AutoScaling::AutoScalingGroup"
+            , "Properties" : {
+                "LaunchConfigurationName" : { "Ref" : "ECSLaunchConfig" }
+                , "MinSize" : "1"
+                , "MaxSize" : { "Ref" : "MaxCapacity" }
+                , "DesiredCapacity" : { "Ref" : "DesiredCapacity" }
+                , "VPCZoneIdentifier" : { "Ref" : "PrivateSubnets" }
+                , "Tags" : [
+                    {
+                        "Key" : "Name"
+                        , "Value" : { "Fn::Join" : ["-",
+                            [ { "Ref" : "AWS::StackName" }, "ecs-asg" ] ]}
+                        , "PropagateAtLaunch" : "true"
+                    }
+                ]
+            }
+        }
+    }
+
+    , "Outputs" : {
+        "ECSClusterName" : {
+            "Description" : "Name of the ECS Cluster"
+            , "Value"  : { "Ref" : "Cluster" }
+        }
+
+        , "ECSInstanceRole" : {
+            "Description" : "Name of the IAM role of the ECS container instances"
+            , "Value" : { "Ref" : "InstanceRole" }
+        }
+
+        , "ECSServiceRole" : {
+            "Description" : "Name of the IAM role for the ECS service"
+            , "Value" : { "Ref" : "ServiceRole" }
+        }
+
+        , "InternalELBSecurityGroup" : {
+            "Description" : "Name of the security group to be used with internal ELBs"
+            , "Value" : { "Ref" : "InternalELBSecurityGroup" }
+        }
+
+        , "ExternalELBSecurityGroup" : {
+            "Description" : "Name of the security gorup to be used with external ELBs"
+            , "Value" : { "Ref" : "ExternalELBSecurityGroup" }
+        }
+
+        , "ECSContainerInstanceSecurityGroupId" : {
+            "Description" : "Name of the security group to be used with container instances"
+            , "Value" : { "Ref" : "InstanceSecurityGroup" }
+        }
+    }
+}

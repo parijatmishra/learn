@@ -1,0 +1,21 @@
+[
+    {
+        "ParameterKey" : "SSHKeyname",
+        "ParameterValue" : "somekey"
+    }
+    ,
+    {
+        "ParameterKey" : "VPCId",
+        "ParameterValue" : "vpc-XXX"
+    }
+    ,
+    {
+        "ParameterKey" : "BastionSecurityGroup",
+        "ParameterValue" : "sg-XXX"
+    }
+    ,
+    {
+        "ParameterKey" : "PrivateSubnets",
+        "ParameterValue" : "subnet-XXX,subnet-YYY"
+    }
+]
