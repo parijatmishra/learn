@@ -1,0 +1,32 @@
+{
+    "name": "spring-boot-rest-greeting-dockerize", 
+    "description": "Creates a docker image and tags it.  Pushes image to ECR repository.", 
+    "source": {
+        "type": "S3", 
+        "location": "code-us-east-1-82573941361/codebuild/spring-boot-rest-greeting/package.zip",
+        "buildspec": "codebuild/buildspec_dockerize.yml"
+    }, 
+    "artifacts": {
+        "type": "NO_ARTIFACTS", 
+        "location": "", 
+        "path": "", 
+        "namespaceType": "BUILD_ID", 
+        "name": "", 
+        "packaging": "ZIP"
+    }, 
+    "environment": {
+        "type": "LINUX_CONTAINER", 
+        "image": "aws/codebuild/docker:1.12.1", 
+        "computeType": "BUILD_GENERAL1_MEDIUM", 
+        "privilegedMode": false
+    }, 
+    "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-service-role",
+    "timeoutInMinutes": 0, 
+    "encryptionKey": "", 
+    "tags": [
+        {
+            "key": "Project", 
+            "value": "learning"
+        }
+    ]
+}

@@ -1,0 +1,30 @@
+{
+    "name": "spring-boot-rest-greeting-mavenize", 
+    "description": "Checks out project from CodeCommit, builds the Java project in it using maven, creates a zip and uploads it to S3",
+    "source": {
+        "type": "CODECOMMIT", 
+        "location": "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/spring-boot-rest-greeting-codebuild",
+        "buildspec": "codebuild/buildspec_mavenize.yml"
+    }, 
+    "artifacts": {
+        "type": "S3", 
+        "location": "code-us-east-1-82573941361",
+        "path": "codebuild/spring-boot-rest-greeting", 
+        "namespaceType": "NONE",
+        "name": "package.zip", 
+        "packaging": "ZIP"
+    }, 
+    "environment": {
+        "type": "LINUX_CONTAINER", 
+        "image": "aws/codebuild/java:openjdk-8", 
+        "computeType": "BUILD_GENERAL1_MEDIUM", 
+        "privilegedMode": false
+    }, 
+    "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-service-role",
+    "tags": [
+        {
+            "key": "Project", 
+            "value": "learning"
+        }
+    ]
+}

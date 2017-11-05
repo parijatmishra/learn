@@ -1,0 +1,53 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:logs:us-east-1:825739414361:log-group:/aws/codebuild/spring-boot-rest-greeting-mavenize",
+                "arn:aws:logs:us-east-1:825739414361:log-group:/aws/codebuild/spring-boot-rest-greeting-mavenize:*",
+                "arn:aws:logs:us-east-1:825739414361:log-group:/aws/codebuild/spring-boot-rest-greeting-dockerize",
+                "arn:aws:logs:us-east-1:825739414361:log-group:/aws/codebuild/spring-boot-rest-greeting-dockerize:*"
+            ],
+            "Action": [
+                "logs:CreateLogGroup",
+                "logs:CreateLogStream",
+                "logs:PutLogEvents"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:s3:::code-us-east-1-82573941361/*"
+            ],
+            "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:GetObjectVersion"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:codecommit:us-east-1:825739414361:spring-boot-rest-greeting-codebuild"
+            ],
+            "Action": [
+                "codecommit:GitPull"
+            ]
+        },
+        {
+            "Effect": "Allow",
+            "Resource": [
+                "arn:aws:ecs:us-east-1:825739414361:repository/spring-boot-rest-greeting"
+            ],
+            "Action": [
+                "ecr:BatchCheckLayerAvailability",
+                "ecr:CompleteLayerUpload",
+                "ecr:GetAuthorizationToken",
+                "ecr:InitiateLayerUpload",
+                "ecr:PutImage",
+                "ecr:UploadLayerPart"
+            ]
+        }
+    ]
+}
