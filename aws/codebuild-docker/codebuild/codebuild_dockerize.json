@@ -21,8 +21,6 @@
         "privilegedMode": false
     }, 
     "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-service-role",
-    "timeoutInMinutes": 0, 
-    "encryptionKey": "", 
     "tags": [
         {
             "key": "Project", 
