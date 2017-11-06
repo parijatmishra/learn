@@ -7,18 +7,13 @@
         "buildspec": "codebuild/buildspec_dockerize.yml"
     }, 
     "artifacts": {
-        "type": "NO_ARTIFACTS", 
-        "location": "", 
-        "path": "", 
-        "namespaceType": "BUILD_ID", 
-        "name": "", 
-        "packaging": "ZIP"
+        "type": "NO_ARTIFACTS"
     }, 
     "environment": {
         "type": "LINUX_CONTAINER", 
         "image": "aws/codebuild/docker:1.12.1", 
         "computeType": "BUILD_GENERAL1_MEDIUM", 
-        "privilegedMode": false
+        "privilegedMode": true
     }, 
     "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-service-role",
     "tags": [
