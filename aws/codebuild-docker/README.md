@@ -156,4 +156,4 @@ aws codebuild start-build --project-name spring-boot-rest-greeting-mavenize
 
 If you changed the name of the project in `codebuild_mavenize.json`, then adapt the line above accordingly.
 
-
+1.  You can see the progress of the build in the CodeBuild console.
