@@ -3,5 +3,5 @@ version: 0.2
 phases:
     build:
         commands:
-            - docker/docker_build.sh
-            - docker/ecr_push.sh
+            - ./docker/docker_build.sh
+            - ./docker/ecr_push.sh

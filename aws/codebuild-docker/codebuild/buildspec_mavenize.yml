@@ -3,7 +3,7 @@ version: 0.2
 phases:
     build:
         commands:
-            - make_dist.sh
+            - ./make_dist.sh
 artifacts:
     files:
         - "**/*"

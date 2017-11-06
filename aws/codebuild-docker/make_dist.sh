@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Build Java project, and then create a dist/ folder with everything required
 # to build a Docker image and push to ECR
 # 
