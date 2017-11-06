@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 VARS="$(dirname $0)/_vars.sh"
-if [ -f "${VARS}" ]; then
+if [ ! -f "${VARS}" ]; then
     echo  "I need a \"${VARS}\" to run"
     exit 1
 fi
@@ -11,8 +11,8 @@ source "${VARS}"
 echo "Building image ${IMAGE_REPO_NAME}:${IMAGE_TAG} ..."
 TMPDIR="docker_build_$$"
 mkdir -p $TMPDIR
-cp app.jar $TMPDIR/app.jar
-cp Dockerfile $TMPDIR/
+cp $(dirname $0)/app.jar $TMPDIR/app.jar
+cp $(dirname $0)/Dockerfile $TMPDIR/
 docker build --force-rm \
     -t ${IMAGE_REPO_NAME}:${IMAGE_TAG} \
     $TMPDIR/
