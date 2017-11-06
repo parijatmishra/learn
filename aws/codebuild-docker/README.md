@@ -142,4 +142,4 @@ If you changed the name of the project in `codebuild_dockerize.json`, then adapt
 
 1. You can see the progress of the build in the CodeBuild console.
 
-1.  When the build finishes, visit your ECR repository.
+1.  When the build finishes, visit your ECR repository.  It should have a new image now.
