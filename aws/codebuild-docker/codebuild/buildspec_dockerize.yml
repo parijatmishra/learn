@@ -1,12 +1,7 @@
 ---
 version: 0.2
 phases:
-    pre_build:
-        - echo Logging in to Amazon ECR
-        - $(aws ecr get-login --region $AWS_DEFAULT_REGION)
     build:
         commands:
-            - source versions.sh
-            - echo Build of image version ${VERSION} started on `date`
             - docker/docker_build.sh
             - docker/ecr_push.sh
