@@ -5,6 +5,7 @@
 # Include codebuild buildspec required to build Docker image and push to ECR
 #
 ## Edit these to suit your project
+set -evx
 export PROJECTDIR=spring-boot-rest-greeting
 export MVN_ARTIFACT_ID=spring-boot-rest-greeting
 export IMAGE_REPO_NAME=spring-boot-rest-greeting
@@ -13,12 +14,12 @@ export AWS_ACCOUNT_ID=825739414361
 
 ## Don't edit these -- automatically computed
 export GITHASH=$(git rev-parse HEAD)
-if [ ! -d ${PROJECTDIR} ]; then
+if [ ! -d "${PROJECTDIR}" ]; then
     echo "Directory ${PROJECTDIR} not found.  PWD=`pwd`."
     exit 2
 fi
 
-export MVN_VERSION=$(cd ${PROJECTDIR} && \
+export MVN_VERSION=$(cd "${PROJECTDIR}" && \
     mvn -q -Dexec.executable='echo' \
         -Dexec.args='${project.version}' \
         --non-recursive \
@@ -35,9 +36,6 @@ if [ $? -ne 0 ]; then
 fi
 popd
 
-echo
-echo "************"
-echo "Copying distribution files to dist/"
 rm -rf dist/
 mkdir -p dist
 cp -a docker dist/
@@ -49,5 +47,3 @@ export IMAGE_TAG=${IMAGE_TAG}
 export AWS_DEFAULT_REGION=${AWS_DEFAULT_REGION}
 export AWS_ACCOUNT_ID=${AWS_ACCOUNT_ID}
 EOF
-echo
-echo "************"
