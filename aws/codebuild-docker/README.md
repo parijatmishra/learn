@@ -80,6 +80,8 @@ Decide what you are going to name your two CodeBuild projects.  We will call
 ours `spring-boot-rest-greeting-mavenize` and
 `spring-boot-rest-greeting-dockerize`.
 
+#### Option 1: Using the Console
+
 Using the AWS console, create an IAM role.  We will assume the name of the role
 is `codebuild-spring-boot-rest-greeting-role`.  Edit the file
 `codebuild/iam_policy.json` and substitute your AWS account ID, the AWS region
@@ -89,6 +91,12 @@ referenced in CloudWatch Logs permissions as
 the ECR repository name you chose.  Create a new IAM policy and insert this
 JSON into the (adjust resource names to adopt to your names):
 
+#### Option 2: Using the CLI
+```
+$ aws iam create-policy --policy-name CodeBuild-spring-boot-rest-greeting --policy-document file://codebuild/iam_policy.json
+$ aws iam create-role --role-name codebuild-spring-boot-rest-greeting-role --assume-role-policy-document file://codebuild/codebuild-iam-role-trust-policy.json
+$ aws iam attach-role-policy --role-name codebuild-spring-boot-rest-greeting-role --policy-arn arn:aws:iam::825739414361:policy/CodeBuild-spring-boot-rest-greeting
+```
 ### Update CodeBuild project files
 
 Edit `codebuild/codebuild_*.json` files, and update them with your AWS account
@@ -133,7 +141,7 @@ If you changed the name of the project in `codebuild_mavenize.json`, then adapt 
 aws codebuild create-project --cli-input-json file://codebuild/codebuild_dockerize.json
 ```
 
-2. Start the biuld:
+2. Start the build:
 ```
 aws codebuild start-build --project-name spring-boot-rest-greeting-dockerize
 ```

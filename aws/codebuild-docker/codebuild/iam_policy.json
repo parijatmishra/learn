@@ -38,7 +38,7 @@
         {
             "Effect": "Allow",
             "Resource": [
-                "arn:aws:ecs:us-east-1:825739414361:repository/spring-boot-rest-greeting"
+                "arn:aws:ecr:us-east-1:825739414361:repository/spring-boot-rest-greeting"
             ],
             "Action": [
                 "ecr:BatchCheckLayerAvailability",
