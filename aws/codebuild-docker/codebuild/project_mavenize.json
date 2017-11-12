@@ -20,7 +20,7 @@
         "computeType": "BUILD_GENERAL1_MEDIUM", 
         "privilegedMode": false
     }, 
-    "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-service-role",
+    "serviceRole": "arn:aws:iam::825739414361:role/service-role/codebuild-spring-boot-rest-greeting-role",
     "tags": [
         {
             "key": "Project", 

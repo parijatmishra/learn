@@ -4,14 +4,21 @@ Demo of how to build a Docker image of a Java web service, and push it to an
 Amazon EC2 Container Registry, using AWS CodeBuild.
 
 Contents:
-  - [spring-boot-rest-greeting/]: application code.
+  - [spring-boot-rest-greeting/]: A Java project with a Apache Maven build
+    definition (`pom.xml`).
+  - [codebuild/]: AWS CodeBuild Build Specs, CodeBuild Project definitions, and
+    IAM polocies.
+  - [make_dist.sh]: step 1 of the build process (first CodeBuild project).
+    Requires `maven` and `git`.  Builds the Java project using maven.
+    Generated an image tag using maven project version and git commit hash.
+    Sets up everything required to build Docker image and push to ECR
+    repository in a generated `dist/` folder.
   - [docker/Dockerfile]]: the Dockerfile for creating the Docker image
-  - [codebuild/]: AWS CodeBuild build-spec and project.
-  - [make_dist.sh]: step 1 of the build process. Required `maven` and `git`.
-    Build Java project using maven. Generated an image tag using maven project
-    version and git commit hash.  Sets up everything required to build Docker
-    image and push to ECR repository in a generated `dist/` folder.
-
+  - [docker/docker_build.sh] and [docker/ecr_push.sh]: used in step 2 of the
+    the build process (second CodeBuild project).  Creates a docker image and
+    tags it with a version computed from the maven project version and the git
+    commit hash. Pushes the docker image to EC2 Container repository.
+    
 ## Building manually
 
 Edit the variables at the top of the file `make_dist.sh`.  Then build JAR and Docker image with:
@@ -51,12 +58,16 @@ You can interact with the service like so:
 
 To build the project, create a Docker image, and push the image to ECR, we will need a few resources.  All of them should be in the same AWS region.
 
-1. A CodeCommit repository: create a code commit repository, and note down it's name.
+1. A CodeCommit repository: create a code commit repository, and note down it's
+   name.
 1. An S3 bucket, where artifacts after doing a maven build will be stored.
 1. An ECR repository, where we will push the Docker image.
-1. An IAM role, that will allow CodeBuild read access to our CodeCommit repository, read/write to the S3 bucket to upload/download build artifacts, and write access to the ECR repository.
-1. A CodeBuild project, to do a maven build and create an uberjar.
-1. Another CodeBuild project, that will create a Docker image from the uberjar
+1. An IAM role, that will allow CodeBuild read access to our CodeCommit
+   repository, read/write to the S3 bucket to upload/download build artifacts,
+   and write access to the ECR repository.
+1. First CodeBuild project, to do a maven build and create an uberjar.
+1. Second CodeBuild project, that will create a Docker image from the uberjar
+   and push the image to ECR.
 
 ### Create a CodeCommit repository
 
@@ -82,24 +93,28 @@ ours `spring-boot-rest-greeting-mavenize` and
 
 #### Option 1: Using the Console
 
-Using the AWS console, create an IAM role.  We will assume the name of the role
-is `codebuild-spring-boot-rest-greeting-role`.  Edit the file
-`codebuild/iam_policy.json` and substitute your AWS account ID, the AWS region
-you are using, the AWS CodeBuild project names you chose (in the policy they
-referenced in CloudWatch Logs permissions as
+Edit the file `codebuild/iam-service-policy.json` and substitute your AWS
+account ID, the AWS region you are using, the AWS CodeBuild project names you
+chose (in the policy they referenced in CloudWatch Logs permissions as
 `log-group:/aws/codebuild/<project-name-prefix-*>`), the S3 bucket name, and
-the ECR repository name you chose.  Create a new IAM policy and insert this
-JSON into the (adjust resource names to adopt to your names):
+the ECR repository name you chose.
+
+Using the AWS console, create an IAM role with "AWS Service -> CodeBuild" as
+the *trusted entity*.  We will assume the name of the role is
+`codebuild-spring-boot-rest-greeting-role`.  In the *Create Policy* step,
+choose "Create Your Own Policy" and insert the contents of
+`codebuild/iam-service-policy.json` into the *Policy Document* field.
 
 #### Option 2: Using the CLI
+
 ```
-$ aws iam create-policy --policy-name CodeBuild-spring-boot-rest-greeting --policy-document file://codebuild/iam_policy.json
-$ aws iam create-role --role-name codebuild-spring-boot-rest-greeting-role --assume-role-policy-document file://codebuild/codebuild-iam-role-trust-policy.json
-$ aws iam attach-role-policy --role-name codebuild-spring-boot-rest-greeting-role --policy-arn arn:aws:iam::825739414361:policy/CodeBuild-spring-boot-rest-greeting
+$ aws iam create-role --role-name codebuild-spring-boot-rest-greeting-role --assume-role-policy-document file://codebuild/iam-trust-policy.json
+$ aws iam put-role-policy --role-name codebuild-spring-boot-rest-greeting-role --policy-name spring-boot-rest-greeting-policy --policy-document file://codebuild/iam-service-policy.json
 ```
+
 ### Update CodeBuild project files
 
-Edit `codebuild/codebuild_*.json` files, and update them with your AWS account
+Edit `codebuild/project_*.json` files, and update them with your AWS account
 id, AWS region, CodeCommit repository name, S3 bucket name, ECR repository
 name, and IAM role name.
 
@@ -108,7 +123,7 @@ name, and IAM role name.
 1. Create the "mavenize" CodeBuild project:
 
 ```
-aws codebuild create-project --cli-input-json file://codebuild/codebuild_mavenize.json
+aws codebuild create-project --cli-input-json file://codebuild/project_mavenize.json
 ```
 
 1. In your checked out CodeCommit repository, copy over all files from this folder.  Then:
@@ -138,7 +153,7 @@ If you changed the name of the project in `codebuild_mavenize.json`, then adapt 
 1. Create the "dockerize" CodeBuild project:
 
 ```
-aws codebuild create-project --cli-input-json file://codebuild/codebuild_dockerize.json
+aws codebuild create-project --cli-input-json file://codebuild/project_dockerize.json
 ```
 
 2. Start the build:
@@ -150,4 +165,4 @@ If you changed the name of the project in `codebuild_dockerize.json`, then adapt
 
 1. You can see the progress of the build in the CodeBuild console.
 
-1.  When the build finishes, visit your ECR repository.
+1.  When the build finishes, visit your ECR repository.  You should see a new image there.
