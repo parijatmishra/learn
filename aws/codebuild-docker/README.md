@@ -18,7 +18,9 @@ Contents:
     the build process (second CodeBuild project).  Creates a docker image and
     tags it with a version computed from the maven project version and the git
     commit hash. Pushes the docker image to EC2 Container repository.
-    
+  - [cloudformation/]: a cloudformation template that sets up the two CodeBuild
+    projects. It replaces everything in `codebuild/` directory.
+
 ## Building manually
 
 Edit the variables at the top of the file `make_dist.sh`.  Then build JAR and Docker image with:
