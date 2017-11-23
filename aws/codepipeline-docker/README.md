@@ -3,15 +3,14 @@
 ## The application
 
 The application is a very simple "Hello, World" application and its code
-resides in the directory
-[spring-boot-rest-greeting](spring-boot-rest-greeting).
+resides in the directory [app](app).
 
 ### Building
 
 Building an executable Jar is as easy as:
 
 ```
-cd spring-boot-rest-greeting
+cd app
 mvn clean package
 ```
 
@@ -21,7 +20,7 @@ version is the value of `project.version` in `pom.xml`.
 
 ### Running
 
-In the code directory, you can run the program as:
+From inside the `app` directory, you can run the packaged jar file like this:
 
 ```
 java -jar target/spring-boot-rest-greeting-1.0.jar
@@ -89,8 +88,8 @@ git clone https://git-codecommit.us-east-1.amazonaws.com/v1/repos/<stack-name> <
 Copy the contents of this folder (the folder that contains this README) into the just cloned repository.  Commit and push the contents.
 
 ```
-cp -a $PROJECT_DIR/* <local-dir>
-cd <local-repo>
+cp -a <this-dir>/* <local-dir>
+cd <local-dir>
 git add -A .
 git commit -m "First commit"
 git push

@@ -6,7 +6,7 @@
 #
 ## Edit these to suit your project
 set -evx
-export PROJECTDIR=spring-boot-rest-greeting
+export APPDIR=app
 export MVN_ARTIFACT_ID=spring-boot-rest-greeting
 export IMAGE_REPO_NAME=spring-boot-rest-greeting
 export AWS_DEFAULT_REGION=us-east-1
@@ -18,21 +18,21 @@ if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then
 else
     export GITHASH=$CODEBUILD_RESOLVED_SOURCE_VERSION
 fi
-if [ ! -d "${PROJECTDIR}" ]; then
-    echo "Directory ${PROJECTDIR} not found.  PWD=`pwd`."
+if [ ! -d "${APPDIR}" ]; then
+    echo "Directory ${APPDIR} not found.  PWD=`pwd`."
     exit 2
 fi
 
-export MVN_VERSION=$(cd "${PROJECTDIR}" && \
+export MVN_VERSION=$(cd "${APPDIR}" && \
     mvn -q -Dexec.executable='echo' \
         -Dexec.args='${project.version}' \
         --non-recursive \
         exec:exec)
-export JARFILE=${PROJECTDIR}/target/${MVN_ARTIFACT_ID}-${MVN_VERSION}.jar
+export JARFILE=${APPDIR}/target/${MVN_ARTIFACT_ID}-${MVN_VERSION}.jar
 export IMAGE_TAG=${MVN_VERSION}-${GITHASH}
 
 pushd .
-cd $PROJECTDIR
+cd $APPDIR
 mvn -B package
 if [ $? -ne 0 ]; then
     echo "Maven build error"
