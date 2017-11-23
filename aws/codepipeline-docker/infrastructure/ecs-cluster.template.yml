@@ -1,0 +1,146 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+    This CloudFormation template creates an ECS cluster and an Application Load
+    Balancer, in an existing VPC across 2 Availability
+    Zones.  Expects to be run on top of the Amazon VPC Architecture Quick Start
+    (https://aws.amazon.com/quickstart/architecture/vpc/). In particular,
+    expects there to be an existing CloudFormation stack, which exports some
+    outputs, that this template can import.
+Parameters:
+    VPCStackName:
+        Type: String
+        Description: Name of a CloudFormation stack that created a VPC as per QS(0027).
+    LoadBalancerStackName:
+        Type: String
+        Description: Name of a CloudFormation stack that created a Application Load Balancer for our ECS Cluster.
+    KeyName:
+        Type: AWS::EC2::KeyPair::KeyName
+        Description: Name of an existing EC2 keypair to allow SSH access to ECS instances.
+    ECSInstanceType:
+        Type: String
+        Default: t2.micro
+        Description: EC2 instance type to use for ECS container intances.
+        AllowedValues: [t2.micro,t2.small]
+        ConstraintDescription: Please choose one of the allowed instances types.
+    DesiredCapacity:
+        Type: Number
+        Default: 1
+        Description: Number of ECS container instances to launch.
+    MaxCapacity:
+        Type: Number
+        Default: 1
+        Description: Maxmimum number of ECS container instances that can be launched in your cluster.
+Mappings:
+    AWSRegionToECSAMI:
+        us-east-1:
+            AMIID: ami-eca289fb
+        us-east-2:
+            AMIID: ami-446f3521
+        us-west-1:
+            AMIID: ami-9fadf8ff
+        us-west-2:
+            AMIID: ami-7abc111a
+        eu-west-1:
+            AMIID: ami-a1491ad2
+        eu-central-1:
+            AMIID: ami-54f5303b
+        ap-northeast-1:
+            AMIID: ami-9cd57ffd
+        ap-southeast-1:
+            AMIID: ami-a900a3ca
+        ap-southeast-2:
+            AMIID: ami-5781be34
+Resources:
+    ECSCluster:
+        Type: AWS::ECS::Cluster
+    ECSSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub ${VPCStackName}-VPCID
+            GroupDescription: !Sub ${ECSCluster} ECS SecurityGroup
+            SecurityGroupIngress:
+                - Description: Allow access to all ports from ALB Security Group
+                  IpProtocol: tcp
+                  FromPort: 0
+                  ToPort: 65535
+                  SourceSecurityGroupId:
+                      Fn::ImportValue:
+                          !Sub ${LoadBalancerStackName}-LoadBalancerSecurityGroupID
+            Tags:
+                - Key: Name
+                  Value: !Sub ${AWS::StackName}-ECS
+    ECSInstanceRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                          Service: ec2.amazonaws.com
+                      Action:
+                          - sts:AssumeRole
+            Path: /
+            Policies:
+                - PolicyName: !Sub ${AWS::StackName}-ECSInstanceRole
+                  PolicyDocument:
+                      Statement:
+                          - Effect: Allow
+                            Resource: '*'
+                            Action: '*'
+    ECSInstanceProfile:
+        Type: AWS::IAM::InstanceProfile
+        Properties:
+            Path: /
+            Roles:
+                - !Ref ECSInstanceRole
+    ECSLaunchConfiguration:
+        Type: AWS::AutoScaling::LaunchConfiguration
+        Properties:
+            ImageId: !FindInMap [AWSRegionToECSAMI, !Ref 'AWS::Region', AMIID]
+            InstanceType: !Ref ECSInstanceType
+            KeyName: !Ref KeyName
+            SecurityGroups: [!Ref ECSSecurityGroup]
+            IamInstanceProfile: !Ref ECSInstanceProfile
+            UserData:
+                Fn::Base64: !Sub |
+                    #!/bin/bash -evx
+                    echo ECS_CLUSTER=${ECSCluster} >> /etc/ecs/ecs.config
+                    echo ECS_ENABLE_CONTAINER_METADATA=true
+                    yum install -y aws-cfn-bootstrap
+                    /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource ECSAutoScalingGroup --region ${AWS::Region}
+    ECSAutoScalingGroup:
+        Type: AWS::AutoScaling::AutoScalingGroup
+        Properties:
+            LaunchConfigurationName: !Ref ECSLaunchConfiguration
+            MinSize: '1'
+            MaxSize: !Ref MaxCapacity
+            DesiredCapacity: !Ref DesiredCapacity
+            VPCZoneIdentifier:
+                - Fn::ImportValue:
+                    !Sub ${VPCStackName}-PrivateSubnet1AID
+                - Fn::ImportValue:
+                    !Sub ${VPCStackName}-PrivateSubnet2AID
+        CreationPolicy:
+            ResourceSignal:
+                Timeout: PT15M
+        UpdatePolicy:
+            AutoScalingReplacingUpdate:
+                WillReplace: true
+Outputs:
+    ECSCluster:
+        Value: !Ref ECSCluster
+        Description: ECS Cluster ID
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSClusterID
+    ECSSecurityGroup:
+        Value: !Ref ECSSecurityGroup
+        Description: ECS Cluster Security Group
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSSecurityGroup
+    ECSInstanceRole:
+        Value: !Ref ECSInstanceRole
+        Description: ECS Cluster Instance IAM Role
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSInstanceRole

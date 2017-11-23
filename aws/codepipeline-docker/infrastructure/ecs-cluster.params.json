@@ -1,0 +1,14 @@
+[
+    {
+        "ParameterKey": "VPCStackName",
+        "ParameterValue": "sbrg-vpc"
+    },
+    {
+        "ParameterKey": "LoadBalancerStackName",
+        "ParameterValue": "sbrg-alb"
+    },
+    {
+        "ParameterKey": "KeyName",
+        "ParameterValue": "general1"
+    }
+]

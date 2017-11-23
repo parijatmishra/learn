@@ -1,0 +1,10 @@
+[
+    {
+        "ParameterKey": "VPCStackName",
+        "ParameterValue": "sbrg-vpc"
+    },
+    {
+        "ParameterKey": "Name",
+        "ParameterValue": "sbrg-alb"
+    }
+]

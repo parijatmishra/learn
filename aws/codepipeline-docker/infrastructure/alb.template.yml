@@ -1,0 +1,85 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+    This template deploys an Applicaion Load Balancer in an existing VPC,
+    across 2 Availability Zones.  Expects to be run on top of the Amazon VPC
+    Architecture Quick Start
+    (https://aws.amazon.com/quickstart/architecture/vpc/). In particular,
+    expects there to be an existing CloudFormation stack, which exports some
+    outputs, that this template can import.
+Parameters:
+    VPCStackName:
+        Type: String
+        Description: Name of a CloudFormation stack that created a VPC as per QS(0027).
+    Name:
+        Type: String
+        Description: >-
+            Specifies a name for the load balancer. This name must be unique
+            within your AWS account and can have a maximum of 32 alphanumeric
+            characters and hyphens. A name can't begin or end with a hyphen.
+        MaxLength: 32
+        AllowedPattern: "[A-Za-z0-9][A-Za-z0-9|-]{0,30}[A-Za-z0-9]"
+Resources:
+    LoadBalancer:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Name: !Ref Name
+            Subnets:
+                - Fn::ImportValue:
+                    !Sub ${VPCStackName}-PublicSubnet1ID
+                - Fn::ImportValue:
+                    !Sub ${VPCStackName}-PublicSubnet2ID
+            Tags:
+                - Key: Name
+                  Value: !Ref Name
+    LoadBalancerSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            VpcId:
+                Fn::ImportValue:
+                    !Sub ${VPCStackName}-VPCID
+            GroupDescription: !Sub Access to ${Name} Load Balancer
+            SecurityGroupIngress:
+                - CidrIp: 0.0.0.0/0
+                  IpProtocol: tcp
+                  FromPort: 80
+                  ToPort: 80
+            Tags:
+                - Key: Name
+                  Value: !Sub ${AWS::StackName}-LoadBalancers
+    LoadBalancerListener:
+        Type: AWS::ElasticLoadBalancingV2::Listener
+        Properties:
+            LoadBalancerArn: !Ref LoadBalancer
+            Port: 80
+            Protocol: HTTP
+            DefaultActions:
+                - Type: forward
+                  TargetGroupArn: !Ref DefaultTargetGroup
+                 
+    # We define a default target group here, as this is a mandatory Parameters
+    # when creating an Application Load Balancer Listener. This is not used.
+    # Instead a target group is created per-service in each service template.
+    
+    DefaultTargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            Name: !Sub ${Name}-Default
+            VpcId:
+                Fn::ImportValue:
+                    !Sub ${VPCStackName}-VPCID
+            Port: 80
+            Protocol: HTTP
+
+Outputs:
+    LoadBalancerDNSName:
+        Value: !GetAtt LoadBalancer.DNSName
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerDNSName
+    LoadBalancerListenerArn:
+        Value: !Ref LoadBalancerListener
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerListenerArn
+    LoadBalancerSecurityGroupID:
+        Value: !GetAtt LoadBalancerSecurityGroup.GroupId
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerSecurityGroupID

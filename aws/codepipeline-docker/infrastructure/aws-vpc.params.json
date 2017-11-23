@@ -1,0 +1,14 @@
+[
+    {
+        "ParameterKey": "CreatePrivateSubnets",
+        "ParameterValue": "true"
+    },
+    {
+        "ParameterKey": "KeyPairName",
+        "ParameterValue": "general1"
+    },
+    {
+        "ParameterKey": "AvailabilityZones",
+        "ParameterValue": "us-east-1a,us-east-1b"
+    }
+]
