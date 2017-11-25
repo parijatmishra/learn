@@ -67,7 +67,7 @@ Resources:
                   ToPort: 65535
                   SourceSecurityGroupId:
                       Fn::ImportValue:
-                          !Sub ${LoadBalancerStackName}-LoadBalancerSecurityGroupID
+                          !Sub ${LoadBalancerStackName}-SecurityGroupID
             Tags:
                 - Key: Name
                   Value: !Sub ${AWS::StackName}-ECS
@@ -129,11 +129,11 @@ Resources:
             AutoScalingReplacingUpdate:
                 WillReplace: true
 Outputs:
-    ECSCluster:
-        Value: !Ref ECSCluster
-        Description: ECS Cluster ID
+    ECSClusterArn:
+        Value: !GetAtt ECSCluster.Arn
+        Description: ECS Cluster Arn
         Export:
-            Name: !Sub ${AWS::StackName}-ECSClusterID
+            Name: !Sub ${AWS::StackName}-ECSClusterArn
     ECSSecurityGroup:
         Value: !Ref ECSSecurityGroup
         Description: ECS Cluster Security Group

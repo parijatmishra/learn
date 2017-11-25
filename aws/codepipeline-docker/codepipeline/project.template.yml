@@ -12,17 +12,26 @@ Parameters:
             which is used as an artifact store for all pipelines.  This pipeline
             will create a folder to contain its artifacts based on the name of
             the project.
+    CodeCommitRepositoryName:
+        Type: String
+        Description: Name of the CodeCommit git repository
+    ECRRepositoryName:
+        Type: String
+        Description: Name of the ECR Docker image repository
 Resources:
     CodeCommitRepository:
         Type: AWS::CodeCommit::Repository
+        DeletionPolicy: Delete
         Properties:
-            RepositoryName: !Ref AWS::StackName
+            RepositoryName: !Ref CodeCommitRepositoryName
     ECRRepository:
         Type: AWS::ECR::Repository
+        DeletionPolicy: Delete
         Properties:
-            RepositoryName: !Ref AWS::StackName
+            RepositoryName: !Ref ECRRepositoryName
     CloudWatchLogsPolicy:
         Type: AWS::IAM::ManagedPolicy
+        DeletionPolicy: Delete
         Properties:
             ManagedPolicyName: !Sub ${AWS::StackName}-CWLogs
             Description: Shared policy for access to CloudWatch Logs
@@ -152,7 +161,7 @@ Resources:
                     phases:
                         build:
                             commands:
-                                - "./make_dist.sh"
+                                - ./make_dist.sh ${IMAGE_REPO_NAME}
                     artifacts:
                         files:
                             - "**/*"
@@ -165,6 +174,9 @@ Resources:
                 ComputeType: BUILD_GENERAL1_SMALL
                 Image: "aws/codebuild/java:openjdk-8"
                 PrivilegedMode: false
+                EnvironmentVariables:
+                    - Name: IMAGE_REPO_NAME
+                      Value: !Ref ECRRepository
     CodeBuildDocker:
         Type: AWS::CodeBuild::Project
         Description: >-

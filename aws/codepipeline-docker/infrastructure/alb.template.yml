@@ -74,12 +74,12 @@ Outputs:
     LoadBalancerDNSName:
         Value: !GetAtt LoadBalancer.DNSName
         Export:
-            Name: !Sub ${AWS::StackName}-LoadBalancerDNSName
+            Name: !Sub ${AWS::StackName}-DNSName
     LoadBalancerListenerArn:
         Value: !Ref LoadBalancerListener
         Export:
-            Name: !Sub ${AWS::StackName}-LoadBalancerListenerArn
+            Name: !Sub ${AWS::StackName}-ListenerArn
     LoadBalancerSecurityGroupID:
         Value: !GetAtt LoadBalancerSecurityGroup.GroupId
         Export:
-            Name: !Sub ${AWS::StackName}-LoadBalancerSecurityGroupID
+            Name: !Sub ${AWS::StackName}-SecurityGroupID

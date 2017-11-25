@@ -4,11 +4,12 @@
 # 
 # Include codebuild buildspec required to build Docker image and push to ECR
 #
-## Edit these to suit your project
 set -evx
+export IMAGE_REPO_NAME=$1
+
+## Edit these to suit your project
 export APPDIR=app
 export MVN_ARTIFACT_ID=spring-boot-rest-greeting
-export IMAGE_REPO_NAME=spring-boot-rest-greeting
 export AWS_DEFAULT_REGION=us-east-1
 export AWS_ACCOUNT_ID=825739414361
 
