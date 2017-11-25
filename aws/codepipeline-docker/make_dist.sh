@@ -4,32 +4,37 @@
 # 
 # Include codebuild buildspec required to build Docker image and push to ECR
 #
-## Edit these to suit your project
 set -evx
-export PROJECTDIR=spring-boot-rest-greeting
+export IMAGE_REPO_NAME=$1
+
+## Edit these to suit your project
+export APPDIR=app
 export MVN_ARTIFACT_ID=spring-boot-rest-greeting
-export IMAGE_REPO_NAME=spring-boot-rest-greeting
 export AWS_DEFAULT_REGION=us-east-1
 export AWS_ACCOUNT_ID=825739414361
 
 ## Don't edit these -- automatically computed
-export GITHASH=$(git rev-parse HEAD)
-if [ ! -d "${PROJECTDIR}" ]; then
-    echo "Directory ${PROJECTDIR} not found.  PWD=`pwd`."
+if [ -z "$CODEBUILD_RESOLVED_SOURCE_VERSION" ]; then
+    export GITHASH=$(git rev-parse HEAD)
+else
+    export GITHASH=$CODEBUILD_RESOLVED_SOURCE_VERSION
+fi
+if [ ! -d "${APPDIR}" ]; then
+    echo "Directory ${APPDIR} not found.  PWD=`pwd`."
     exit 2
 fi
 
-export MVN_VERSION=$(cd "${PROJECTDIR}" && \
+export MVN_VERSION=$(cd "${APPDIR}" && \
     mvn -q -Dexec.executable='echo' \
         -Dexec.args='${project.version}' \
         --non-recursive \
         exec:exec)
-export JARFILE=${PROJECTDIR}/target/${MVN_ARTIFACT_ID}-${MVN_VERSION}.jar
+export JARFILE=${APPDIR}/target/${MVN_ARTIFACT_ID}-${MVN_VERSION}.jar
 export IMAGE_TAG=${MVN_VERSION}-${GITHASH}
 
 pushd .
-cd $PROJECTDIR
-mvn package
+cd $APPDIR
+mvn -B package
 if [ $? -ne 0 ]; then
     echo "Maven build error"
     exit 3
@@ -39,7 +44,6 @@ popd
 rm -rf dist/
 mkdir -p dist
 cp -a docker dist/
-cp -a codebuild dist/
 cp ${JARFILE} dist/docker/app.jar
 cat > dist/docker/_vars.sh <<EOF
 export IMAGE_REPO_NAME=${IMAGE_REPO_NAME}

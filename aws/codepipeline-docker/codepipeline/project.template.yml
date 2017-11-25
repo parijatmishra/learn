@@ -1,0 +1,315 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+    Created a build pipeline.  Starting from a Java web app and Dockerfile (and
+    some helper scripts), builds the app, creates a Docker image, and pushes it
+    to an ECR Repository.
+Parameters:
+    CodePipelineS3BucketName:
+        Type: String
+        AllowedPattern: "[a-zA-Z0-9\\-\\.]{3,63}"
+        Description: >-
+            Name of an existing S3 bucket in the same region as the pipeline,
+            which is used as an artifact store for all pipelines.  This pipeline
+            will create a folder to contain its artifacts based on the name of
+            the project.
+    CodeCommitRepositoryName:
+        Type: String
+        Description: Name of the CodeCommit git repository
+    ECRRepositoryName:
+        Type: String
+        Description: Name of the ECR Docker image repository
+Resources:
+    CodeCommitRepository:
+        Type: AWS::CodeCommit::Repository
+        DeletionPolicy: Delete
+        Properties:
+            RepositoryName: !Ref CodeCommitRepositoryName
+    ECRRepository:
+        Type: AWS::ECR::Repository
+        DeletionPolicy: Delete
+        Properties:
+            RepositoryName: !Ref ECRRepositoryName
+    CloudWatchLogsPolicy:
+        Type: AWS::IAM::ManagedPolicy
+        DeletionPolicy: Delete
+        Properties:
+            ManagedPolicyName: !Sub ${AWS::StackName}-CWLogs
+            Description: Shared policy for access to CloudWatch Logs
+            PolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Resource:
+                          - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}*
+                      Action:
+                          - logs:CreateLogGroup
+                          - logs:CreateLogStream
+                          - logs:PutLogEvents
+    CodeBuildIAMRole:
+        Type: AWS::IAM::Role
+        Metadata:
+            Description: The IAM role that the CodeBuild projects will use to access your resources.
+        Properties:
+            RoleName: !Sub CodeBuild-${AWS::StackName}
+            Path: "/"
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Action: sts:AssumeRole
+                      Principal:
+                          Service: codebuild.amazonaws.com
+            ManagedPolicyArns:
+                - !Ref CloudWatchLogsPolicy
+            Policies:
+                - PolicyName: !Sub CodeBuild-${AWS::StackName}
+                  PolicyDocument:
+                      Version: 2012-10-17
+                      Statement:
+                          - Sid: CodeCommitRepositoryAccess
+                            Effect: Allow
+                            Resource: !GetAtt CodeCommitRepository.Arn
+                            Action:
+                              - codecommit:GitPull
+                          - Sid: CodePipelineS3BucketAccess
+                            Effect: Allow
+                            Resource: !Sub arn:aws:s3:::${CodePipelineS3BucketName}/*
+                            Action:
+                                - s3:PutObject
+                                - s3:GetObject
+                                - s3:GetObjectVersion
+                          - Sid: ECRRepositoryAccess
+                            Effect: Allow
+                            Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}
+                            Action:
+                                - ecr:BatchCheckLayerAvailability
+                                - ecr:InitiateLayerUpload
+                                - ecr:UploadLayerPart
+                                - ecr:CompleteLayerUpload
+                                - ecr:PutImage
+                          - Sid: ECRRepositoryAuthorizationAccess
+                            Effect: Allow
+                            Resource: "*"
+                            Action: ecr:GetAuthorizationToken
+                          - Sid: KMSS3KeyAccess
+                            Effect: Allow
+                            Action:
+                                - kms:Encrypt
+                                - kms:Decrypt
+                            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
+    CodePipelineIAMRole:
+        Type: AWS::IAM::Role
+        Metadata:
+            Description: The IAM role that CodePipeline will use to access your resources.
+        Properties:
+            RoleName: !Sub CodePipeline-${AWS::StackName}
+            Path: "/"
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Action: sts:AssumeRole
+                      Principal:
+                          Service: codepipeline.amazonaws.com
+            ManagedPolicyArns:
+                - !Ref CloudWatchLogsPolicy
+            Policies:
+                - PolicyName: !Sub CodePipeline-${AWS::StackName}
+                  PolicyDocument:
+                      Version: 2012-10-17
+                      Statement:
+                          - Sid: CodeCommitRepositoryAccess
+                            Effect: Allow
+                            Resource: !GetAtt CodeCommitRepository.Arn
+                            Action:
+                                - codecommit:GetBranch
+                                - codecommit:GetCommit
+                                - codecommit:UploadArchive
+                                - codecommit:GetUploadArchiveStatus
+                                - codecommit:CancelUploadArchive
+                          - Sid: CodePipelineS3BucketAccess
+                            Effect: Allow
+                            Resource: !Sub arn:aws:s3:::${CodePipelineS3BucketName}/*
+                            Action:
+                                - s3:GetObject
+                                - s3:PutObject
+                          - Sid: CodeBuildProjectsAccess
+                            Effect: Allow
+                            Resource:
+                                - !GetAtt CodeBuildMaven.Arn
+                                - !GetAtt CodeBuildDocker.Arn
+                            Action:
+                                - codebuild:StartBuild
+                                - codebuild:BatchGetBuilds
+                          - Sid: KMSS3KeyAccess
+                            Effect: Allow
+                            Action:
+                                - kms:Encrypt
+                                - kms:Decrypt
+                            Resource: !Sub arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
+    CodeBuildMaven:
+        Type: AWS::CodeBuild::Project
+        Description: >-
+            Builds the Java project using maven. Packages the JAR, Dockerfile,
+            docker build scripts for the next step.
+        Properties:
+            Name: !Sub ${AWS::StackName}-Maven
+            Source:
+                Type: CODEPIPELINE
+                BuildSpec: |
+                    version: "0.2"
+                    phases:
+                        build:
+                            commands:
+                                - ./make_dist.sh ${IMAGE_REPO_NAME}
+                    artifacts:
+                        files:
+                            - "**/*"
+                        base-directory: dist
+            Artifacts:
+                Type: CODEPIPELINE
+            ServiceRole: !GetAtt CodeBuildIAMRole.Arn
+            Environment:
+                Type: LINUX_CONTAINER
+                ComputeType: BUILD_GENERAL1_SMALL
+                Image: "aws/codebuild/java:openjdk-8"
+                PrivilegedMode: false
+                EnvironmentVariables:
+                    - Name: IMAGE_REPO_NAME
+                      Value: !Ref ECRRepository
+    CodeBuildDocker:
+        Type: AWS::CodeBuild::Project
+        Description: >-
+            Creates a Docker image. Uploads image to ECR.  Uses scripts
+            provided by previous action.
+        Properties:
+            Name: !Sub ${AWS::StackName}-Docker
+            Source:
+                Type: CODEPIPELINE
+                BuildSpec: |
+                    version: "0.2"
+                    phases:
+                        build:
+                            commands:
+                                - "./docker/docker_build.sh"
+                                - "./docker/ecr_push.sh"
+            Artifacts:
+                Type: CODEPIPELINE
+            ServiceRole: !GetAtt CodeBuildIAMRole.Arn
+            Environment:
+                Type: LINUX_CONTAINER
+                ComputeType: BUILD_GENERAL1_SMALL
+                Image: "aws/codebuild/docker:1.12.1"
+                PrivilegedMode: true
+                EnvironmentVariables:
+                    - Name: AWS_ACCOUNT_ID
+                      Value: !Ref AWS::AccountId
+                    - Name: AWS_DEFAULT_REGION
+                      Value: !Ref AWS::Region
+                    - Name: IMAGE_REPO_NAME
+                      Value: !Ref ECRRepository
+    CodePipeline:
+        Type: AWS::CodePipeline::Pipeline
+        Properties:
+            Name: !Ref AWS::StackName
+            ArtifactStore:
+                Type: S3
+                Location: !Ref CodePipelineS3BucketName
+            RoleArn: !GetAtt CodePipelineIAMRole.Arn
+            RestartExecutionOnUpdate: true
+            Stages:
+                - Name: Source
+                  Actions:
+                      - Name: Source
+                        ActionTypeId:
+                            Category: Source
+                            Owner: AWS
+                            Provider: CodeCommit
+                            Version: "1"
+                        Configuration:
+                            PollForSourceChanges: "false"
+                            RepositoryName: !GetAtt CodeCommitRepository.Name
+                            BranchName: master
+                        OutputArtifacts:
+                            - Name: SourceOutput
+                - Name: Build
+                  Actions:
+                      - Name: Build-Maven
+                        RunOrder: 1
+                        ActionTypeId:
+                            Category: Build
+                            Owner: AWS
+                            Provider: CodeBuild
+                            Version: "1"
+                        InputArtifacts:
+                            - Name: SourceOutput
+                        Configuration:
+                            ProjectName: !Ref CodeBuildMaven
+                        OutputArtifacts:
+                            - Name: CodeBuildMavenOutput
+                      - Name: Build-Docker
+                        RunOrder: 2
+                        ActionTypeId:
+                            Category: Build
+                            Owner: AWS
+                            Provider: CodeBuild
+                            Version: "1"
+                        InputArtifacts:
+                            - Name: CodeBuildMavenOutput
+                        Configuration:
+                            ProjectName: !Ref CodeBuildDocker
+    CWEPipelineIAMRole:
+        Type: AWS::IAM::Role
+        Metadata:
+            Description: Allowed CloudWatch Events (CWE) to start a CodePipeline pipeline
+        Properties:
+            RoleName: !Sub CWE-CC-${AWS::StackName}
+            Path: "/"
+            AssumeRolePolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    - Effect: Allow
+                      Action: sts:AssumeRole
+                      Principal:
+                          Service: events.amazonaws.com
+            Policies:
+                - PolicyName: !Sub CWE-CC-${AWS::StackName}
+                  PolicyDocument:
+                      Version: 2012-10-17
+                      Statement:
+                          - Effect: Allow
+                            Resource: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}
+                            Action: codepipeline:StartPipelineExecution
+    CodeCommitCloudWatchEvent:
+        Type: AWS::Events::Rule
+        Properties:
+            Name: !Sub ${AWS::StackName}-CodeCommit
+            Description: >-
+                A CloudWatch Events Rule that will trigger our CodePipeline
+                when a commit is made to CodeCommitRepository.
+            Targets:
+                - Id: !Sub ${AWS::StackName}-CodePipeline
+                  Arn: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}
+                  RoleArn: !GetAtt CWEPipelineIAMRole.Arn
+            EventPattern:
+                source:
+                    - aws.codecommit
+                resources:
+                    - !GetAtt CodeCommitRepository.Arn
+                detail-type:
+                    - CodeCommit Repository State Change
+                detail:
+                    event:
+                        - referenceCreated
+                        - referenceUpdated
+                    referenceType:
+                        - branch
+                    referenceName:
+                        - master
+Outputs:
+    CloneUrlHttp:
+        Value: !GetAtt CodeCommitRepository.CloneUrlHttp
+    CodeCommitConsoleUrl:
+        Value: !Sub https://console.aws.amazon.com/codecommit/home?region=${AWS::Region}#/repository/${CodeCommitRepository.Name}/browse/HEAD/--/
+    PipelineConsoleUrl:
+        Value: !Sub https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${CodePipeline}

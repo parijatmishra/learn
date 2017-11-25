@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import boto3
+from botocore.exceptions import ClientError
 import sys
 import time
+
 stack_name=sys.argv[1]
 client = boto3.client('cloudformation')
 
@@ -63,15 +65,28 @@ PROGRESS_STATES=['CREATE_IN_PROGRESS', 'ROLLBACK_IN_PROGRESS',
             'UPDATE_ROLLBACK_COMPLETE_CLEANUP_IN_PROGRESS']
 
 
-while True:
-    status=get_status(stack_name)
-    print status
-    print "==================================="
-    stack_events(stack_name)
-    if status in HALT_STATES:
-        break
-    print ""
-    print "Sleeping..."
-    print ""
+try:
+    while True:
+        status=get_status(stack_name)
+        print status
+        print "==================================="
+        try:
+            stack_events(stack_name)
+        except botocore.exceptions.ClientError:
+            print "Stack does not exist."
+            sys.exit(0)
 
-    time.sleep(10)
+        if status is None or status in HALT_STATES:
+            break
+        print ""
+        print "Sleeping..."
+        print ""
+
+        time.sleep(10)
+except ClientError, e:
+    if ("Stack with id " + stack_name + " does not exist") in str(e):
+        print "Stack does not exist."
+        sys.exit(0)
+    else:
+        raise e
+

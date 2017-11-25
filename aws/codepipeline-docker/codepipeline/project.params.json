@@ -1,0 +1,14 @@
+[
+    {
+        "ParameterKey": "CodePipelineS3BucketName",
+        "ParameterValue": "code-us-east-1-82573941361"
+    },
+    {
+        "ParameterKey": "CodeCommitRepositoryName",
+        "ParameterValue": "pipe-test"
+    },
+    {
+        "ParameterKey": "ECRRepositoryName",
+        "ParameterValue": "pipe-test"
+    }
+]

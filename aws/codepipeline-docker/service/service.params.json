@@ -1,0 +1,34 @@
+[
+    {
+        "ParameterKey": "Path",
+        "ParameterValue": "/greeting"
+    },
+    {
+        "ParameterKey": "HealthCheckPath",
+        "ParameterValue": "/greeting"
+    },
+    {
+        "ParameterKey": "DesiredCount",
+        "ParameterValue": 2
+    },
+    {
+        "ParameterKey": "ImageRepository",
+        "ParameterValue": "spring-boot-rest-greeting"
+    },
+    {
+        "ParameterKey": "ImageTag",
+        "ParameterValue": "$IMAGE_TAG"
+    },
+    {
+        "ParameterKey": "VPCStackName",
+        "ParameterValue": "sbrg-vpc"
+    },
+    {
+        "ParameterKey": "LoadBalancerStackName",
+        "ParameterValue": "sbrg-alb"
+    },
+    {
+        "ParameterKey": "ECSClusterStackName",
+        "ParameterValue": "sbrg-ecs"
+    }
+]
