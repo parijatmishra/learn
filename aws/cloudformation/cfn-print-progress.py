@@ -68,6 +68,7 @@ PROGRESS_STATES=['CREATE_IN_PROGRESS', 'ROLLBACK_IN_PROGRESS',
 try:
     while True:
         status=get_status(stack_name)
+        print status
         print "==================================="
         try:
             stack_events(stack_name)
@@ -80,7 +81,6 @@ try:
         print ""
         print "Sleeping..."
         print ""
-        print status
 
         time.sleep(10)
 except ClientError, e:
