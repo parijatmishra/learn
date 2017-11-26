@@ -7,13 +7,16 @@ Description: >-
     expects there to be an existing CloudFormation stack, which exports some
     outputs, that this template can import.
 Parameters:
-    VPCStackName:
-        Type: String
-        Description: Name of a CloudFormation stack that created a VPC as per QS(0027).
-    LoadBalancerStackName:
-        Type: String
-        Description: Name of a CloudFormation stack that created a Application Load Balancer for our ECS Cluster.
-    KeyName:
+    VPCID:
+        Type: AWS::EC2::VPC::Id
+        Description: The ID of the VPC in which to create the ECS Cluster.
+    SubnetIDs:
+        Type: List<AWS::EC2::Subnet::Id>
+        Description: IDs of 2 (private) subnets in which to launch the ECS Cluster.
+    LoadBalancerSecurityGroupID:
+        Type: AWS::EC2::SecurityGroup::Id
+        Description: The SG (of the Load Balancer) from which the Cluster will accept all connections.
+    KeyPairName:
         Type: AWS::EC2::KeyPair::KeyName
         Description: Name of an existing EC2 keypair to allow SSH access to ECS instances.
     ECSInstanceType:
@@ -56,18 +59,14 @@ Resources:
     ECSSecurityGroup:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            VpcId:
-                Fn::ImportValue:
-                    !Sub ${VPCStackName}-VPCID
+            VpcId: !Ref VPCID
             GroupDescription: !Sub ${ECSCluster} ECS SecurityGroup
             SecurityGroupIngress:
                 - Description: Allow access to all ports from ALB Security Group
                   IpProtocol: tcp
                   FromPort: 0
                   ToPort: 65535
-                  SourceSecurityGroupId:
-                      Fn::ImportValue:
-                          !Sub ${LoadBalancerStackName}-SecurityGroupID
+                  SourceSecurityGroupId: !Ref LoadBalancerSecurityGroupID
             Tags:
                 - Key: Name
                   Value: !Sub ${AWS::StackName}-ECS
@@ -100,7 +99,7 @@ Resources:
         Properties:
             ImageId: !FindInMap [AWSRegionToECSAMI, !Ref 'AWS::Region', AMIID]
             InstanceType: !Ref ECSInstanceType
-            KeyName: !Ref KeyName
+            KeyName: !Ref KeyPairName
             SecurityGroups: [!Ref ECSSecurityGroup]
             IamInstanceProfile: !Ref ECSInstanceProfile
             UserData:
@@ -117,11 +116,7 @@ Resources:
             MinSize: '1'
             MaxSize: !Ref MaxCapacity
             DesiredCapacity: !Ref DesiredCapacity
-            VPCZoneIdentifier:
-                - Fn::ImportValue:
-                    !Sub ${VPCStackName}-PrivateSubnet1AID
-                - Fn::ImportValue:
-                    !Sub ${VPCStackName}-PrivateSubnet2AID
+            VPCZoneIdentifier: !Ref SubnetIDs
         CreationPolicy:
             ResourceSignal:
                 Timeout: PT15M

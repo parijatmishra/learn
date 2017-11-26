@@ -7,9 +7,6 @@ Description: >-
     expects there to be an existing CloudFormation stack, which exports some
     outputs, that this template can import.
 Parameters:
-    VPCStackName:
-        Type: String
-        Description: Name of a CloudFormation stack that created a VPC as per QS(0027).
     Name:
         Type: String
         Description: >-
@@ -18,25 +15,17 @@ Parameters:
             characters and hyphens. A name can't begin or end with a hyphen.
         MaxLength: 32
         AllowedPattern: "[A-Za-z0-9][A-Za-z0-9|-]{0,30}[A-Za-z0-9]"
+    VPCID:
+        Type: AWS::EC2::VPC::Id
+        Description: ID of the VPC in which to launch the Load Balancer.
+    SubnetIDs:
+        Type: List<AWS::EC2::Subnet::Id>
+        Description: The IDs of the subnets in which to launch the Load Balancer (there should be one subnet per AZ, and the subnets must be public).
 Resources:
-    LoadBalancer:
-        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
-        Properties:
-            Name: !Ref Name
-            Subnets:
-                - Fn::ImportValue:
-                    !Sub ${VPCStackName}-PublicSubnet1ID
-                - Fn::ImportValue:
-                    !Sub ${VPCStackName}-PublicSubnet2ID
-            Tags:
-                - Key: Name
-                  Value: !Ref Name
     LoadBalancerSecurityGroup:
         Type: AWS::EC2::SecurityGroup
         Properties:
-            VpcId:
-                Fn::ImportValue:
-                    !Sub ${VPCStackName}-VPCID
+            VpcId: !Ref VPCID
             GroupDescription: !Sub Access to ${Name} Load Balancer
             SecurityGroupIngress:
                 - CidrIp: 0.0.0.0/0
@@ -46,6 +35,16 @@ Resources:
             Tags:
                 - Key: Name
                   Value: !Sub ${AWS::StackName}-LoadBalancers
+    LoadBalancer:
+        Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+        Properties:
+            Scheme: internet-facing
+            SecurityGroups:
+                - !Ref LoadBalancerSecurityGroup
+            Subnets: !Ref SubnetIDs
+            Tags:
+                - Key: Name
+                  Value: !Ref Name
     LoadBalancerListener:
         Type: AWS::ElasticLoadBalancingV2::Listener
         Properties:
@@ -63,23 +62,13 @@ Resources:
     DefaultTargetGroup:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
-            Name: !Sub ${Name}-Default
-            VpcId:
-                Fn::ImportValue:
-                    !Sub ${VPCStackName}-VPCID
+            VpcId: !Ref VPCID
             Port: 80
             Protocol: HTTP
-
 Outputs:
     LoadBalancerDNSName:
         Value: !GetAtt LoadBalancer.DNSName
-        Export:
-            Name: !Sub ${AWS::StackName}-DNSName
     LoadBalancerListenerArn:
         Value: !Ref LoadBalancerListener
-        Export:
-            Name: !Sub ${AWS::StackName}-ListenerArn
     LoadBalancerSecurityGroupID:
         Value: !GetAtt LoadBalancerSecurityGroup.GroupId
-        Export:
-            Name: !Sub ${AWS::StackName}-SecurityGroupID

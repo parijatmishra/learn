@@ -28,14 +28,22 @@ The name parameter value overrides the default value of "World" and is reflected
 {"id":1,"content":"Hello, User!"}
 ```
 
-## Build an executable JAR
+## Build 
 
 You will need Apache maven installed.  Build the project with:
 ```
 $ mvn clean package
 ```
 
+This will produce and executable uberjar in the
+`target/spring-boot-rest-greeting-1.0.jar`. (The `1.0` is the version number as
+defined in `project.version` setting in `pom.xml` and may be different for
+you.)
+
+# Run
+
 You can run the JAR file:
+
 ```
 java -jar target/spring-boot-rest-greeting-1.0.jar
 ```
@@ -45,8 +53,14 @@ java -jar target/spring-boot-rest-greeting-1.0.jar
 
 Logging output is displayed.  The service should be up and running in a few seconds.
 
+The service litens on the port `8080` by default.  You can change the port with
+the `-Dserver.port=<port>` option.  For e.g.:
 
-## Test the service
+```
+java -Dserver.port=9000 -jar target/spring-boot-rest-greeting-1.0.jar
+```
+
+## Test
 
 Now that the service is up, visit
 [http://localhost:8080/greeting](http://localhost:8080/greeting) where you
