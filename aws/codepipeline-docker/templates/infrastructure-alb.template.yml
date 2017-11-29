@@ -68,7 +68,13 @@ Resources:
 Outputs:
     LoadBalancerDNSName:
         Value: !GetAtt LoadBalancer.DNSName
+        Export:
+            Name: ${AWS::StackName}-LoadBalancerDNSName
     LoadBalancerListenerArn:
         Value: !Ref LoadBalancerListener
+        Export:
+            Name: ${AWS::StackName}-LoadBalancerListenerArn
     LoadBalancerSecurityGroupID:
         Value: !GetAtt LoadBalancerSecurityGroup.GroupId
+        Export:
+            Name: ${AWS::StackName}-LoadBalancerSecurityGroupID
