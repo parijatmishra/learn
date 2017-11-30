@@ -70,30 +70,6 @@ Resources:
             Tags:
                 - Key: Name
                   Value: !Sub ${AWS::StackName}-ECS
-    ECSInstanceRole:
-        Type: AWS::IAM::Role
-        Properties:
-            AssumeRolePolicyDocument:
-                Statement:
-                    - Effect: Allow
-                      Principal:
-                          Service: ec2.amazonaws.com
-                      Action:
-                          - sts:AssumeRole
-            Path: /
-            Policies:
-                - PolicyName: !Sub ${AWS::StackName}-ECSInstanceRole
-                  PolicyDocument:
-                      Statement:
-                          - Effect: Allow
-                            Resource: '*'
-                            Action: '*'
-    ECSInstanceProfile:
-        Type: AWS::IAM::InstanceProfile
-        Properties:
-            Path: /
-            Roles:
-                - !Ref ECSInstanceRole
     ECSLaunchConfiguration:
         Type: AWS::AutoScaling::LaunchConfiguration
         Properties:
@@ -101,7 +77,7 @@ Resources:
             InstanceType: !Ref ECSInstanceType
             KeyName: !Ref KeyPairName
             SecurityGroups: [!Ref ECSSecurityGroup]
-            IamInstanceProfile: !Ref ECSInstanceProfile
+            IamInstanceProfile: ecsInstanceRole
             UserData:
                 Fn::Base64: !Sub |
                     #!/bin/bash -evx
@@ -139,16 +115,6 @@ Outputs:
         Description: ECS Cluster Security Group ID
         Export:
             Name: !Sub ${AWS::StackName}-ECSSecurityGroupID
-    ECSInstanceRoleArn:
-        Value: !GetAtt ECSInstanceRole.Arn
-        Description: ARN ECS Cluster Instance IAM Role
-        Export:
-            Name: !Sub ${AWS::StackName}-ECSInstanceRoleArn
-    ECSInstanceProfileArn:
-        Value: !GetAtt ECSInstanceProfile.Arn
-        Description: Arn of the EC2 Instance Profile used by the ECS cluster instances
-        Export:
-            Name: !Sub ${AWS::StackName}-ECSInstanceProfileArn
     ECSLaunchConfigurationName:
         Value: !Ref ECSLaunchConfiguration
         Description: Name of the Auto-Scaling Launch Configuration used by the ECS cluster auto-scaling group.

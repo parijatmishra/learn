@@ -95,16 +95,6 @@ Outputs:
         Description: ID of ECS Cluster Security Group
         Export:
             Name: !Sub ${AWS::StackName}-ECSSecurityGroupID
-    ECSInstanceRoleArn:
-        Value: !GetAtt ECSStack.Outputs.ECSInstanceRoleArn
-        Description: ARN of the ECS Cluster Instance IAM Role
-        Export:
-            Name: !Sub ${AWS::StackName}-ECSInstanceRoleArn
-    ECSInstanceProfileArn:
-        Value: !GetAtt ECSStack.Outputs.ECSInstanceProfileArn
-        Description: Arn of the EC2 Instance Profile used by the ECS cluster instances
-        Export:
-            Name: !Sub ${AWS::StackName}-ECSInstanceProfileArn
     ECSLaunchConfigurationName:
         Value: !GetAtt ECSStack.Outputs.ECSLaunchConfigurationName
         Description: Name of the Auto-Scaling Launch Configuration used by the ECS cluster auto-scaling group.
