@@ -12,36 +12,24 @@ Parameters:
             which is used as an artifact store for all pipelines.  This pipeline
             will create a folder to contain its artifacts based on the name of
             the project.
-    CodeCommitRepositoryName:
+    AppName:
         Type: String
-        Description: Name of the CodeCommit git repository
-        MinLength: 1
-        MaxLength: 100
-        AllowedPattern: "(?:[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*/)*[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*"
+        AllowedPattern: "[a-z0-9\\-_]{3,50}"
+        Description: Friendly name for the app. Will be used for git repository, ECR repository, ECS task and service names, cloudwatch log groups,...
         ConstraintDescription: >-
-            Any combination of letters, numbers, periods, underscores, and dashes between 
-            1 and 100 characters in length. Repository names cannot end in .git.
-    ECRRepositoryName:
-        Type: String
-        Description: Name of the ECR Docker image repository
-        MinLength: 2
-        MaxLength: 256
-        AllowedPattern: "(?:[a-z0-9]+(?:[._-][a-z0-9]+)*/)*[a-z0-9]+(?:[._-][a-z0-9]+)*"
-        ConstraintDescription: >-
-            Any combination of *lowercase* letters, numbers, periods, underscores, and dashes between 
-            1 and 100 characters in length. Repository names cannot end in .git. Must begin and end
-            with a letter or number.
+            Any combination of lowercase letters, numbers, underscores, and dashes between 
+            1 and 50 characters in length. Cannot end in .git.  Must begin and end with a letter or number.
 Resources:
     CodeCommitRepository:
         Type: AWS::CodeCommit::Repository
         DeletionPolicy: Delete
         Properties:
-            RepositoryName: !Ref CodeCommitRepositoryName
+            RepositoryName: !Ref AppName
     ECRRepository:
         Type: AWS::ECR::Repository
         DeletionPolicy: Delete
         Properties:
-            RepositoryName: !Ref ECRRepositoryName
+            RepositoryName: !Ref AppName
     CloudWatchLogsPolicy:
         Type: AWS::IAM::ManagedPolicy
         DeletionPolicy: Delete
@@ -51,12 +39,19 @@ Resources:
                 Version: 2012-10-17
                 Statement:
                     - Effect: Allow
+                      Action:
+                          - logs:Describe*
+                      Resource: "*"
+                    - Effect: Allow
                       Resource:
-                          - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AWS::StackName}*
+                          - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AppName}*
+                          - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/${AppName}*
                       Action:
                           - logs:CreateLogGroup
+                          - logs:DeleteLogGroup
                           - logs:CreateLogStream
                           - logs:PutLogEvents
+                          - logs:PutRetentionPolicy
     CodeBuildIAMRole:
         Type: AWS::IAM::Role
         Metadata:
@@ -73,7 +68,7 @@ Resources:
             ManagedPolicyArns:
                 - !Ref CloudWatchLogsPolicy
             Policies:
-                - PolicyName: !Sub CodeBuild-${AWS::StackName}
+                - PolicyName: !Sub ${AWS::StackName}-CodeBuild
                   PolicyDocument:
                       Version: 2012-10-17
                       Statement:
@@ -121,14 +116,14 @@ Resources:
                       Action: sts:AssumeRole
                       Principal:
                           Service: cloudformation.amazonaws.com
+            ManagedPolicyArns:
+                - !Ref CloudWatchLogsPolicy
             Policies:
                 - PolicyName: !Sub ${AWS::StackName}-CloudFormation
                   PolicyDocument:
                       Version: 2012-10-17
                       Statement:
-                          - Sid: AllowCFNToDeployApp
-                            Effect: Allow
-                            Resource: "*"
+                          - Effect: Allow
                             Action:
                                 - ec2:Describe*
                                 - ecs:CreateService
@@ -143,14 +138,16 @@ Resources:
                                 - elasticloadbalancing:DeleteTargetGroup
                                 - elasticloadbalancing:ModifyTargetGroupAttributes
                                 - elasticloadbalancing:Describe*
+                            Resource: "*"
+                          - Effect: Allow
+                            Action:
                                 - iam:CreateRole
                                 - iam:DeleteRole
                                 - iam:GetRole
                                 - iam:PassRole
-                                - logs:CreateLogGroup
-                                - logs:DeleteLogGroup
-                                - logs:DescribeLogGroups
-                                - logs:PutRetentionPolicy
+                            Resource:
+                                - !Sub "arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}*"
+                                - !Sub arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
     CodePipelineIAMRole:
         Type: AWS::IAM::Role
         Metadata:
@@ -200,28 +197,39 @@ Resources:
                                 - kms:Encrypt
                                 - kms:Decrypt
                             Resource: !Sub "arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3"
-                          - Sid: CfnPerms
+                          - Sid: CfnReadPerms
+                            Effect: Allow
+                            Action:
+                                - cloudformation:DescribeStacks
+                                - cloudformation:DescribeChangeSet
+                                - cloudformation:ValidateTemplate
+                            Resource: "*"
+                          - Sid: CfnMutatePerms
                             Effect: Allow
                             Action:
                                 - cloudformation:CreateStack
                                 - cloudformation:DeleteStack
-                                - cloudformation:DescribeStacks
                                 - cloudformation:UpdateStack
+                                - cloudformation:SetStackPolicy
                                 - cloudformation:CreateChangeSet
                                 - cloudformation:DeleteChangeSet
-                                - cloudformation:DescribeChangeSet
                                 - cloudformation:ExecuteChangeSet
-                                - cloudformation:SetStackPolicy
-                                - cloudformation:ValidateTemplate
+                            Resource: !Sub "arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*"
+                          - Sid: IAMPerms
+                            Effect: Allow
+                            Action:
                                 - iam:PassRole
-                            Resource: "*"
+                            Resource:
+                                - !GetAtt CfnIAMRole.Arn
+                                - !Sub "arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole"
+
     CodeBuildMaven:
         Type: AWS::CodeBuild::Project
         Description: >-
             Builds the Java project using maven. Packages the JAR, Dockerfile,
             docker build scripts for the next step.
         Properties:
-            Name: !Sub ${AWS::StackName}-Maven
+            Name: !Sub ${AppName}-Maven
             Source:
                 Type: CODEPIPELINE
                 BuildSpec: |
@@ -244,14 +252,14 @@ Resources:
                 PrivilegedMode: false
                 EnvironmentVariables:
                     - Name: IMAGE_REPO_NAME
-                      Value: !Ref ECRRepositoryName
+                      Value: !Ref ECRRepository
     CodeBuildDocker:
         Type: AWS::CodeBuild::Project
         Description: >-
             Creates a Docker image. Uploads image to ECR.  Uses scripts
             provided by previous action.
         Properties:
-            Name: !Sub ${AWS::StackName}-Docker
+            Name: !Sub ${AppName}-Docker
             Source:
                 Type: CODEPIPELINE
                 BuildSpec: |
@@ -279,11 +287,11 @@ Resources:
                     - Name: AWS_DEFAULT_REGION
                       Value: !Ref AWS::Region
                     - Name: IMAGE_REPO_NAME
-                      Value: !Ref ECRRepositoryName
+                      Value: !Ref ECRRepository
     CodePipeline:
         Type: AWS::CodePipeline::Pipeline
         Properties:
-            Name: !Ref AWS::StackName
+            Name: !Ref AppName
             ArtifactStore:
                 Type: S3
                 Location: !Ref CodePipelineS3BucketName
@@ -354,8 +362,9 @@ Resources:
                             TemplateConfiguration: !Sub "SourceOutput::templates/app.configuration.json"
                             Capabilities: CAPABILITY_IAM
                             OutputFileName: cfnoutput.json
-                            ParameterOverrides: |
+                            ParameterOverrides: !Sub |
                                 {
+                                    "AppName": "${AppName}",
                                     "ImageTag": {"Fn::GetParam": ["CodeBuildDockerOutput", "output.json", "tag"]}
                                 }
     CWEPipelineIAMRole:

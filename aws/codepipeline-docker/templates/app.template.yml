@@ -5,6 +5,9 @@ Description: >-
     VPC stack, and ALB stack, and an ECS stack have already been deployed and
     it can import certain outputs from them.
 Parameters:
+    AppName:
+        Type: String
+        Description: A friendly name that will be used for the task definition, service name and ClousWatch log group.
     Path:
         Type: String
         Description: The path (e.g, `/greeting`) that will map to this service, on the load balancer.
@@ -46,7 +49,7 @@ Resources:
     CloudWatchLogsGroup:
         Type: AWS::Logs::LogGroup
         Properties:
-            LogGroupName: "/ecs/sbrg"
+            LogGroupName: !Sub "/ecs/${AppName}"
             RetentionInDays: 30
     TargetGroup:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
@@ -79,32 +82,33 @@ Resources:
     TaskDefinition:
         Type: AWS::ECS::TaskDefinition
         Properties:
-            Family: sbrg
+            Family: !Ref AppName
             TaskRoleArn: !GetAtt TaskRole.Arn
             ContainerDefinitions:
-                - Name: sbrg-web
+                - Name: !Sub "${AppName}-web"
                   Essential: true
                   Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}:${ImageTag}
-                  Memory: 256
+                  Cpu: 256
+                  Memory: 512
                   PortMappings:
                       - ContainerPort: 8000
                   LogConfiguration:
                       LogDriver: awslogs
                       Options:
-                          awslogs-group: "/ecs/sbrg"
+                          awslogs-group: !Sub "/ecs/${AppName}"
                           awslogs-region: !Ref AWS::Region
                           awslogs-stream-prefix: web
     ECSService:
         Type: AWS::ECS::Service
         Properties:
-            # ServiceName: sbrg
+            ServiceName: !Ref AppName
             TaskDefinition: !Ref TaskDefinition
             DesiredCount: !Ref DesiredCount
             Cluster: !Ref ECSClusterArn
             Role: !Sub arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
             LoadBalancers:
-                - ContainerName: sbrg-web
-                  ContainerPort: 8000
+                - ContainerName: !Sub "${AppName}-web"
+                  ContainerPort: 8000 
                   TargetGroupArn: !Ref TargetGroup
 Outputs:
     ECSServiceArn:

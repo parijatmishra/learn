@@ -1,0 +1,478 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Created a build pipeline.  Starting from a Java web app and Dockerfile
+  (and some helper scripts), builds the app, creates a Docker image, and pushes it
+  to an ECR Repository.
+Outputs:
+  CloneUrlHttp:
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-CloneUrlHttp
+    Value:
+      Fn::GetAtt:
+      - CodeCommitRepository
+      - CloneUrlHttp
+  CodeCommitConsoleUrl:
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-CodeCommitConsoleUrl
+    Value:
+      Fn::Sub: https://console.aws.amazon.com/codecommit/home?region=${AWS::Region}#/repository/${CodeCommitRepository.Name}/browse/HEAD/--/
+  PipelineConsoleUrl:
+    Export:
+      Name:
+        Fn::Sub: ${AWS::StackName}-PipelineConsoleUrl
+    Value:
+      Fn::Sub: https://console.aws.amazon.com/codepipeline/home?region=${AWS::Region}#/view/${CodePipeline}
+Parameters:
+  AppName:
+    AllowedPattern: '[a-z0-9\-_]{3,50}'
+    ConstraintDescription: Any combination of lowercase letters, numbers, underscores,
+      and dashes between  1 and 50 characters in length. Cannot end in .git.  Must
+      begin and end with a letter or number.
+    Description: Friendly name for the app. Will be used for git repository, ECR repository,
+      ECS task and service names, cloudwatch log groups,...
+    Type: String
+  CodePipelineS3BucketName:
+    AllowedPattern: '[a-zA-Z0-9\-\.]{3,63}'
+    Description: Name of an existing S3 bucket in the same region as the pipeline,
+      which is used as an artifact store for all pipelines.  This pipeline will create
+      a folder to contain its artifacts based on the name of the project.
+    Type: String
+Resources:
+  CWEPipelineIAMRole:
+    Metadata:
+      Description: Allowed CloudWatch Events (CWE) to start a CodePipeline pipeline
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: events.amazonaws.com
+        Version: 2012-10-17
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action: codepipeline:StartPipelineExecution
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}
+          Version: 2012-10-17
+        PolicyName:
+          Fn::Sub: ${AWS::StackName}-CloudWatchEvents
+    Type: AWS::IAM::Role
+  CfnIAMRole:
+    Metadata:
+      Description: The IAM role that CloudFormation will be using to deploy our app
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: cloudformation.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - Ref: CloudWatchLogsPolicy
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - ec2:Describe*
+            - ecs:CreateService
+            - ecs:DeleteService
+            - ecs:UpdateService
+            - ecs:RegisterTaskDefinition
+            - ecs:DeregisterTaskDefinition
+            - ecs:Describe*
+            - elasticloadbalancing:CreateRule
+            - elasticloadbalancing:CreateTargetGroup
+            - elasticloadbalancing:DeleteRule
+            - elasticloadbalancing:DeleteTargetGroup
+            - elasticloadbalancing:ModifyTargetGroupAttributes
+            - elasticloadbalancing:Describe*
+            Effect: Allow
+            Resource: '*'
+          - Action:
+            - iam:CreateRole
+            - iam:DeleteRole
+            - iam:GetRole
+            - iam:PassRole
+            Effect: Allow
+            Resource:
+            - Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/${AWS::StackName}*
+            - Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
+          Version: 2012-10-17
+        PolicyName:
+          Fn::Sub: ${AWS::StackName}-CloudFormation
+    Type: AWS::IAM::Role
+  CloudWatchLogsPolicy:
+    DeletionPolicy: Delete
+    Properties:
+      Description: Shared policy for access to CloudWatch Logs
+      PolicyDocument:
+        Statement:
+        - Action:
+          - logs:Describe*
+          Effect: Allow
+          Resource: '*'
+        - Action:
+          - logs:CreateLogGroup
+          - logs:DeleteLogGroup
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          - logs:PutRetentionPolicy
+          Effect: Allow
+          Resource:
+          - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/codebuild/${AppName}*
+          - Fn::Sub: arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/ecs/${AppName}*
+        Version: 2012-10-17
+    Type: AWS::IAM::ManagedPolicy
+  CodeBuildDocker:
+    Description: Creates a Docker image. Uploads image to ECR.  Uses scripts provided
+      by previous action.
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+        - Name: AWS_ACCOUNT_ID
+          Value:
+            Ref: AWS::AccountId
+        - Name: AWS_DEFAULT_REGION
+          Value:
+            Ref: AWS::Region
+        - Name: IMAGE_REPO_NAME
+          Value:
+            Ref: ECRRepository
+        Image: aws/codebuild/docker:1.12.1
+        PrivilegedMode: true
+        Type: LINUX_CONTAINER
+      Name:
+        Fn::Sub: ${AppName}-Docker
+      ServiceRole:
+        Fn::GetAtt:
+        - CodeBuildIAMRole
+        - Arn
+      Source:
+        BuildSpec: "version: \"0.2\"\nphases:\n    build:\n        commands:\n   \
+          \         - \"./docker/docker_build.sh\"\n            - \"./docker/ecr_push.sh\"\
+          \n            - \"./docker/write_tag.sh\"\nartifacts:\n    files:\n    \
+          \    - output.json\n"
+        Type: CODEPIPELINE
+    Type: AWS::CodeBuild::Project
+  CodeBuildIAMRole:
+    Metadata:
+      Description: The IAM role that the CodeBuild projects will use to access your
+        resources.
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codebuild.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - Ref: CloudWatchLogsPolicy
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - codecommit:GitPull
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CodeCommitRepository
+              - Arn
+            Sid: CodeCommitRepositoryAccess
+          - Action:
+            - s3:PutObject
+            - s3:GetObject
+            - s3:GetObjectVersion
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:s3:::${CodePipelineS3BucketName}/*
+            Sid: CodePipelineS3BucketAccess
+          - Action:
+            - ecr:BatchCheckLayerAvailability
+            - ecr:InitiateLayerUpload
+            - ecr:UploadLayerPart
+            - ecr:CompleteLayerUpload
+            - ecr:PutImage
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ECRRepository}
+            Sid: ECRRepositoryAccess
+          - Action: ecr:GetAuthorizationToken
+            Effect: Allow
+            Resource: '*'
+            Sid: ECRRepositoryAuthorizationAccess
+          - Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
+            Sid: KMSS3KeyAccess
+          Version: 2012-10-17
+        PolicyName:
+          Fn::Sub: ${AWS::StackName}-CodeBuild
+    Type: AWS::IAM::Role
+  CodeBuildMaven:
+    Description: Builds the Java project using maven. Packages the JAR, Dockerfile,
+      docker build scripts for the next step.
+    Properties:
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        EnvironmentVariables:
+        - Name: IMAGE_REPO_NAME
+          Value:
+            Ref: ECRRepository
+        Image: aws/codebuild/java:openjdk-8
+        PrivilegedMode: false
+        Type: LINUX_CONTAINER
+      Name:
+        Fn::Sub: ${AppName}-Maven
+      ServiceRole:
+        Fn::GetAtt:
+        - CodeBuildIAMRole
+        - Arn
+      Source:
+        BuildSpec: "version: \"0.2\"\nphases:\n    build:\n        commands:\n   \
+          \         - ./make_dist.sh ${IMAGE_REPO_NAME}\nartifacts:\n    files:\n\
+          \        - \"**/*\"\n    base-directory: dist\n"
+        Type: CODEPIPELINE
+    Type: AWS::CodeBuild::Project
+  CodeCommitCloudWatchEvent:
+    Properties:
+      Description: A CloudWatch Events Rule that will trigger our CodePipeline when
+        a commit is made to CodeCommitRepository.
+      EventPattern:
+        detail:
+          event:
+          - referenceCreated
+          - referenceUpdated
+          referenceName:
+          - master
+          referenceType:
+          - branch
+        detail-type:
+        - CodeCommit Repository State Change
+        resources:
+        - Fn::GetAtt:
+          - CodeCommitRepository
+          - Arn
+        source:
+        - aws.codecommit
+      Name:
+        Fn::Sub: ${AWS::StackName}-CodeCommit
+      Targets:
+      - Arn:
+          Fn::Sub: arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${CodePipeline}
+        Id:
+          Fn::Sub: ${AWS::StackName}-CodePipeline
+        RoleArn:
+          Fn::GetAtt:
+          - CWEPipelineIAMRole
+          - Arn
+    Type: AWS::Events::Rule
+  CodeCommitRepository:
+    DeletionPolicy: Delete
+    Properties:
+      RepositoryName:
+        Ref: AppName
+    Type: AWS::CodeCommit::Repository
+  CodePipeline:
+    Properties:
+      ArtifactStore:
+        Location:
+          Ref: CodePipelineS3BucketName
+        Type: S3
+      Name:
+        Ref: AppName
+      RestartExecutionOnUpdate: true
+      RoleArn:
+        Fn::GetAtt:
+        - CodePipelineIAMRole
+        - Arn
+      Stages:
+      - Actions:
+        - ActionTypeId:
+            Category: Source
+            Owner: AWS
+            Provider: CodeCommit
+            Version: '1'
+          Configuration:
+            BranchName: master
+            PollForSourceChanges: 'false'
+            RepositoryName:
+              Fn::GetAtt:
+              - CodeCommitRepository
+              - Name
+          Name: Source
+          OutputArtifacts:
+          - Name: SourceOutput
+        Name: Source
+      - Actions:
+        - ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: '1'
+          Configuration:
+            ProjectName:
+              Ref: CodeBuildMaven
+          InputArtifacts:
+          - Name: SourceOutput
+          Name: Build-Maven
+          OutputArtifacts:
+          - Name: CodeBuildMavenOutput
+          RunOrder: 1
+        - ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: '1'
+          Configuration:
+            ProjectName:
+              Ref: CodeBuildDocker
+          InputArtifacts:
+          - Name: CodeBuildMavenOutput
+          Name: Build-Docker
+          OutputArtifacts:
+          - Name: CodeBuildDockerOutput
+          RunOrder: 2
+        Name: Build
+      - Actions:
+        - ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: CloudFormation
+            Version: '1'
+          Configuration:
+            ActionMode: REPLACE_ON_FAILURE
+            Capabilities: CAPABILITY_IAM
+            OutputFileName: cfnoutput.json
+            ParameterOverrides:
+              Fn::Sub: "{\n    \"AppName\": \"${AppName}\",\n    \"ImageTag\": {\"\
+                Fn::GetParam\": [\"CodeBuildDockerOutput\", \"output.json\", \"tag\"\
+                ]}\n}\n"
+            RoleArn:
+              Fn::GetAtt:
+              - CfnIAMRole
+              - Arn
+            StackName:
+              Fn::Sub: ${AWS::StackName}-test
+            TemplateConfiguration:
+              Fn::Sub: SourceOutput::templates/app.configuration.json
+            TemplatePath:
+              Fn::Sub: SourceOutput::templates/app.template.yml
+          InputArtifacts:
+          - Name: SourceOutput
+          - Name: CodeBuildDockerOutput
+          Name: Test-Deploy
+          OutputArtifacts:
+          - Name: TestDeployOutput
+          RunOrder: 1
+        Name: Test
+    Type: AWS::CodePipeline::Pipeline
+  CodePipelineIAMRole:
+    Metadata:
+      Description: The IAM role that CodePipeline will use to access your resources.
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codepipeline.amazonaws.com
+        Version: 2012-10-17
+      ManagedPolicyArns:
+      - Ref: CloudWatchLogsPolicy
+      Path: /
+      Policies:
+      - PolicyDocument:
+          Statement:
+          - Action:
+            - codecommit:GetBranch
+            - codecommit:GetCommit
+            - codecommit:UploadArchive
+            - codecommit:GetUploadArchiveStatus
+            - codecommit:CancelUploadArchive
+            Effect: Allow
+            Resource:
+              Fn::GetAtt:
+              - CodeCommitRepository
+              - Arn
+            Sid: CodeCommitRepositoryAccess
+          - Action:
+            - s3:GetObject
+            - s3:PutObject
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:s3:::${CodePipelineS3BucketName}/*
+            Sid: CodePipelineS3BucketAccess
+          - Action:
+            - codebuild:StartBuild
+            - codebuild:BatchGetBuilds
+            Effect: Allow
+            Resource:
+            - Fn::GetAtt:
+              - CodeBuildMaven
+              - Arn
+            - Fn::GetAtt:
+              - CodeBuildDocker
+              - Arn
+            Sid: CodeBuildProjectsAccess
+          - Action:
+            - kms:Encrypt
+            - kms:Decrypt
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:kms:${AWS::Region}:${AWS::AccountId}:alias/aws/s3
+            Sid: KMSS3KeyAccess
+          - Action:
+            - cloudformation:DescribeStacks
+            - cloudformation:DescribeChangeSet
+            - cloudformation:ValidateTemplate
+            Effect: Allow
+            Resource: '*'
+            Sid: CfnReadPerms
+          - Action:
+            - cloudformation:CreateStack
+            - cloudformation:DeleteStack
+            - cloudformation:UpdateStack
+            - cloudformation:SetStackPolicy
+            - cloudformation:CreateChangeSet
+            - cloudformation:DeleteChangeSet
+            - cloudformation:ExecuteChangeSet
+            Effect: Allow
+            Resource:
+              Fn::Sub: arn:aws:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}*
+            Sid: CfnMutatePerms
+          - Action:
+            - iam:PassRole
+            Effect: Allow
+            Resource:
+            - Fn::GetAtt:
+              - CfnIAMRole
+              - Arn
+            - Fn::Sub: arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
+            Sid: IAMPerms
+          Version: 2012-10-17
+        PolicyName:
+          Fn::Sub: ${AWS::StackName}-CodePipeline
+    Type: AWS::IAM::Role
+  ECRRepository:
+    DeletionPolicy: Delete
+    Properties:
+      RepositoryName:
+        Ref: AppName
+    Type: AWS::ECR::Repository

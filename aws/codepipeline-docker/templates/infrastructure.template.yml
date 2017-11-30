@@ -47,6 +47,8 @@ Resources:
             Parameters:
                 VPCID: !GetAtt VPCStack.Outputs.VPCID
                 KeyPairName: !Ref KeyPairName
+                DesiredCapacity: 2
+                ECSInstanceType: t2.small
                 LoadBalancerSecurityGroupID: !GetAtt ALBStack.Outputs.LoadBalancerSecurityGroupID
                 SubnetIDs:
                     Fn::Join:
