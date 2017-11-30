@@ -128,8 +128,29 @@ Resources:
                       Statement:
                           - Sid: AllowCFNToDeployApp
                             Effect: Allow
-                            Action: "*"
                             Resource: "*"
+                            Action:
+                                - ec2:Describe*
+                                - ecs:CreateService
+                                - ecs:DeleteService
+                                - ecs:UpdateService
+                                - ecs:RegisterTaskDefinition
+                                - ecs:DeregisterTaskDefinition
+                                - ecs:Describe*
+                                - elasticloadbalancing:CreateRule
+                                - elasticloadbalancing:CreateTargetGroup
+                                - elasticloadbalancing:DeleteRule
+                                - elasticloadbalancing:DeleteTargetGroup
+                                - elasticloadbalancing:ModifyTargetGroupAttributes
+                                - elasticloadbalancing:Describe*
+                                - iam:CreateRole
+                                - iam:DeleteRole
+                                - iam:GetRole
+                                - iam:PassRole
+                                - logs:CreateLogGroup
+                                - logs:DeleteLogGroup
+                                - logs:DescribeLogGroups
+                                - logs:PutRetentionPolicy
     CodePipelineIAMRole:
         Type: AWS::IAM::Role
         Metadata:
