@@ -54,5 +54,65 @@ Resources:
                         -
                             - !GetAtt VPCStack.Outputs.PrivateSubnet1AID
                             - !GetAtt VPCStack.Outputs.PrivateSubnet2AID
-
+Outputs:
+    VPCID:
+        Value: !GetAtt VPCStack.Outputs.VPCID
+        Description: ID of the VPC created.
+        Export:
+            Name: !Sub ${AWS::StackName}-VPCID
+    LoadBalancerDNSName:
+        Value: !GetAtt ALBStack.Outputs.LoadBalancerDNSName
+        Description: Hostname of the Load Balancer
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerDNSName
+    LoadBalancerArn:
+        Value: !GetAtt ALBStack.Outputs.LoadBalancerArn
+        Description: ARN of the Load Balancer
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerArn
+    LoadBalancerListenerArn:
+        Value: !GetAtt ALBStack.Outputs.LoadBalancerListenerArn
+        Description: ARN of the Load Balancer Port 80 Listener
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerListenerArn
+    LoadBalancerSecurityGroupID:
+        Value: !GetAtt ALBStack.Outputs.LoadBalancerSecurityGroupID
+        Description: ID of the Security Group of the Load Balancer
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerSecurityGroupID
+    ECSClusterName:
+        Value: !GetAtt ECSStack.Outputs.ECSClusterName
+        Description: Name of the ECS Cluster
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSClusterName
+    ECSClusterArn:
+        Value: !GetAtt ECSStack.Outputs.ECSClusterArn
+        Description: ECS Cluster Arn
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSClusterArn
+    ECSSecurityGroupID:
+        Value: !GetAtt ECSStack.Outputs.ECSSecurityGroupID
+        Description: ID of ECS Cluster Security Group
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSSecurityGroupID
+    ECSInstanceRoleArn:
+        Value: !GetAtt ECSStack.Outputs.ECSInstanceRoleArn
+        Description: ARN of the ECS Cluster Instance IAM Role
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSInstanceRoleArn
+    ECSInstanceProfileArn:
+        Value: !GetAtt ECSStack.Outputs.ECSInstanceProfileArn
+        Description: Arn of the EC2 Instance Profile used by the ECS cluster instances
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSInstanceProfileArn
+    ECSLaunchConfigurationName:
+        Value: !GetAtt ECSStack.Outputs.ECSLaunchConfigurationName
+        Description: Name of the Auto-Scaling Launch Configuration used by the ECS cluster auto-scaling group.
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSLaunchConfigurationName
+    ECSAutoScalingGroupName:
+        Value: !GetAtt ECSStack.Outputs.ECSAutoScalingGroupName
+        Description: Name of the Auto-Scaling Group used to create the ECS cluster.
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSAutoScalingGroupName
 

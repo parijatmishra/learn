@@ -21,15 +21,15 @@ Parameters:
     ImageTag:
         Type: String
         Description: Tag of the Docker image to pull
-    VPCStackName:
+    VPCID:
+        Type: AWS::EC2::VPC::Id
+        Description: ID of the VPC in which the service and load balancer exist
+    LoadBalancerListenerArn:
         Type: String
-        Description: Name of a CloudFormation stack that created a VPC as per QS(0027).
-    LoadBalancerStackName:
+        Description: ARN of the Load Balancer listener, to which this service should be attached at the given Path.
+    ECSClusterArn:
         Type: String
-        Description: Name of a CloudFormation stack that created a Application Load Balancer for our ECS Cluster.
-    ECSClusterStackName:
-        Type: String
-        Description: Name of a CloudFormation stack that created an ECS Cluster.
+        Description: ARN of the ECS Cluster in which to deploy the service
 Resources:
     TaskRole:
         Type: AWS::IAM::Role
@@ -46,35 +46,17 @@ Resources:
     CloudWatchLogsGroup:
         Type: AWS::Logs::LogGroup
         Properties:
-            LogGroupName: !Ref AWS::StackName
+            LogGroupName: "/ecs/sbrg"
             RetentionInDays: 30
-    TaskDefinition:
-        Type: AWS::ECS::TaskDefinition
-        Properties:
-            Family: spring-boot-rest-greeting
-            TaskRoleArn: !Ref TaskRole
-            ContainerDefinitions:
-                - Name: spring-boot-rest-greeting
-                  Essential: true
-                  Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}:${ImageTag}
-                  Memory: 256
-                  PortMappings:
-                      - ContainerPort: 8080
-                  LogConfiguration:
-                      LogDriver: awslogs
-                      Options:
-                          awslogs-group: !Ref AWS::StackName
-                          awslogs-region: !Ref AWS::Region
-                          awslogs-prefix: spring-boot-rest-greeting
     TargetGroup:
         Type: AWS::ElasticLoadBalancingV2::TargetGroup
         Properties:
-            VpcId: !Sub ${VPCStackName}-VPCID
+            VpcId: !Ref VPCID
             Port: 80
             Protocol: HTTP
             HealthCheckPath: !Ref HealthCheckPath
             HealthCheckProtocol: HTTP
-            HealthCheckTimeoutSeconds: 5
+            HealthCheckTimeoutSeconds: 2
             HealthCheckIntervalSeconds: 5
             HealthyThresholdCount: 2
             Matcher:
@@ -85,33 +67,51 @@ Resources:
     ALBListenerRule:
         Type: AWS::ElasticLoadBalancingV2::ListenerRule
         Properties:
-            ListernerArn:
-                Fn::ImportValue:
-                    !Sub ${LoadBalancerStackName}-ListenerArn
+            ListenerArn: !Ref LoadBalancerListenerArn
             Priority: 2
             Conditions:
                 - Field: path-pattern
-                  Value:
+                  Values:
                       - !Ref Path
             Actions:
                 - TargetGroupArn: !Ref TargetGroup
                   Type: forward
-    Service:
+    TaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            Family: sbrg
+            TaskRoleArn: !GetAtt TaskRole.Arn
+            ContainerDefinitions:
+                - Name: sbrg-web
+                  Essential: true
+                  Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}:${ImageTag}
+                  Memory: 256
+                  PortMappings:
+                      - ContainerPort: 8000
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group: "/ecs/sbrg"
+                          awslogs-region: !Ref AWS::Region
+                          awslogs-stream-prefix: web
+    ECSService:
         Type: AWS::ECS::Service
         Properties:
-            ServiceName: ${AWS::StackName}
+            # ServiceName: sbrg
             TaskDefinition: !Ref TaskDefinition
             DesiredCount: !Ref DesiredCount
-            Cluster: !Sub ${ECSClusterStackName}-ECSClusterArn
+            Cluster: !Ref ECSClusterArn
             Role: !Sub arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
             LoadBalancers:
-                - ContainerName: spring-boot-rest-greeting
-                  ContainerPort: 8080
+                - ContainerName: sbrg-web
+                  ContainerPort: 8000
                   TargetGroupArn: !Ref TargetGroup
 Outputs:
-    ServiceArn:
-        Value: !Ref Service
-    TaskDefinitionArn:
+    ECSServiceArn:
+        Value: !Ref ECSService
+        Export:
+            Name: !Sub ${AWS::StackName}-ServiceArn
+    ECSTaskDefinitionArn:
         Value: !Ref TaskDefinition
-    URL:
-        Value: !Sub ${LoadBalancerStackName}-DNSName/${Path}
+        Export:
+            Name: !Sub ${AWS::StackName}-TaskDefinitionArn

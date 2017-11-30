@@ -68,13 +68,21 @@ Resources:
 Outputs:
     LoadBalancerDNSName:
         Value: !GetAtt LoadBalancer.DNSName
+        Description: Hostname of the Load Balancer
         Export:
-            Name: ${AWS::StackName}-LoadBalancerDNSName
+            Name: !Sub ${AWS::StackName}-LoadBalancerDNSName
+    LoadBalancerArn:
+        Value: !Ref LoadBalancer
+        Description: ARN of the Load Balancer
+        Export:
+            Name: !Sub ${AWS::StackName}-LoadBalancerArn
     LoadBalancerListenerArn:
         Value: !Ref LoadBalancerListener
+        Description: ARN of the Load Balancer Port 80 Listener
         Export:
-            Name: ${AWS::StackName}-LoadBalancerListenerArn
+            Name: !Sub ${AWS::StackName}-LoadBalancerListenerArn
     LoadBalancerSecurityGroupID:
         Value: !GetAtt LoadBalancerSecurityGroup.GroupId
+        Description: ID of the Security Group of the Load Balancer
         Export:
-            Name: ${AWS::StackName}-LoadBalancerSecurityGroupID
+            Name: !Sub ${AWS::StackName}-LoadBalancerSecurityGroupID

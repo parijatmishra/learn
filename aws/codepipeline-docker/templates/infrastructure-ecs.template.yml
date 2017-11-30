@@ -124,18 +124,39 @@ Resources:
             AutoScalingReplacingUpdate:
                 WillReplace: true
 Outputs:
+    ECSClusterName:
+        Value: !Ref ECSCluster
+        Description: Name of the ECS Cluster
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSClusterName
     ECSClusterArn:
         Value: !GetAtt ECSCluster.Arn
         Description: ECS Cluster Arn
         Export:
             Name: !Sub ${AWS::StackName}-ECSClusterArn
-    ECSSecurityGroup:
-        Value: !Ref ECSSecurityGroup
-        Description: ECS Cluster Security Group
+    ECSSecurityGroupID:
+        Value: !GetAtt ECSSecurityGroup.GroupId
+        Description: ECS Cluster Security Group ID
         Export:
-            Name: !Sub ${AWS::StackName}-ECSSecurityGroup
-    ECSInstanceRole:
-        Value: !Ref ECSInstanceRole
-        Description: ECS Cluster Instance IAM Role
+            Name: !Sub ${AWS::StackName}-ECSSecurityGroupID
+    ECSInstanceRoleArn:
+        Value: !GetAtt ECSInstanceRole.Arn
+        Description: ARN ECS Cluster Instance IAM Role
         Export:
-            Name: !Sub ${AWS::StackName}-ECSInstanceRole
+            Name: !Sub ${AWS::StackName}-ECSInstanceRoleArn
+    ECSInstanceProfileArn:
+        Value: !GetAtt ECSInstanceProfile.Arn
+        Description: Arn of the EC2 Instance Profile used by the ECS cluster instances
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSInstanceProfileArn
+    ECSLaunchConfigurationName:
+        Value: !Ref ECSLaunchConfiguration
+        Description: Name of the Auto-Scaling Launch Configuration used by the ECS cluster auto-scaling group.
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSLaunchConfigurationName
+    ECSAutoScalingGroupName:
+        Value: !Ref ECSAutoScalingGroup
+        Description: Name of the Auto-Scaling Group used to create the ECS cluster.
+        Export:
+            Name: !Sub ${AWS::StackName}-ECSAutoScalingGroupName
+
