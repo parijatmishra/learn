@@ -35,7 +35,7 @@ done
 cat > app.configuration.json <<EOF
 {
     "Parameters": {
-        "AppName": "${AppName}"
+        "AppName": "${AppName}",
         "Path": "/greeting",
         "HealthCheckPath": "/greeting",
         "DesiredCount": "2",
