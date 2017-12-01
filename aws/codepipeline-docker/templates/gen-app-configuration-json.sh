@@ -1,7 +1,5 @@
 #!/bin/bash
-CodePipelineS3BucketName=code-us-east-1-82573941361
-CodeCommitRepositoryName=sbrg
-ECRRepositoryName=sbrg
+AppName=sbrg
 
 # Get the output of the main stack as a JSON dict of name-value pairs
 # i.e.:
@@ -29,7 +27,7 @@ ECRRepositoryName=sbrg
 # }
 INFOUT=$(aws cloudformation describe-stacks --stack-name infrastructure | jq '.Stacks[0].Outputs | map({(.OutputKey|tostring): .OutputValue}) | add')
 # Convert the JSON into shell variables
-for i in ECRRespositoryName VPCID LoadBalancerListenerArn ECSClusterArn; do
+for i in VPCID LoadBalancerListenerArn ECSClusterArn; do
 	declare "${i}"=$(echo $INFOUT | jq --raw-output ".$i")
 done
 
@@ -37,10 +35,11 @@ done
 cat > app.configuration.json <<EOF
 {
     "Parameters": {
+        "AppName": "${AppName}"
         "Path": "/greeting",
         "HealthCheckPath": "/greeting",
         "DesiredCount": "2",
-        "ImageRepository": "${ECRRepositoryName}",
+        "ImageRepository": "${AppName}",
         "ImageTag": "TO-BE-OVERRIDDEN-IN-PIPELINE",
         "VPCID": "${VPCID}",
         "LoadBalancerListenerArn": "${LoadBalancerListenerArn}",

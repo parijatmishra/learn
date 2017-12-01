@@ -364,7 +364,6 @@ Resources:
                             OutputFileName: cfnoutput.json
                             ParameterOverrides: !Sub |
                                 {
-                                    "AppName": "${AppName}",
                                     "ImageTag": {"Fn::GetParam": ["CodeBuildDockerOutput", "output.json", "tag"]}
                                 }
     CWEPipelineIAMRole:
