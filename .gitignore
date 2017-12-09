@@ -227,3 +227,4 @@ nosetests.xml
 .#.*
 *.*~
 *~
+.DS_Store
