@@ -1,0 +1,4 @@
+export IMAGE_REPO_NAME=
+export IMAGE_TAG=
+export AWS_DEFAULT_REGION=
+export AWS_ACCOUNT_ID=

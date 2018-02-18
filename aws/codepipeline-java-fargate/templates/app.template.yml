@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+    This template deploys a long running ECS service to an existing ECS
+    cluster, and uses an existnig Application Load Balancer.  It assumes the a
+    VPC stack, and ALB stack, and an ECS stack have already been deployed and
+    it can import certain outputs from them.
+Parameters:
+    AppName:
+        Type: String
+        Description: A friendly name that will be used for the task definition, service name and ClousWatch log group.
+    Path:
+        Type: String
+        Description: The path (e.g, `/greeting`) that will map to this service, on the load balancer.
+    HealthCheckPath:
+        Type: String
+        Description: The path (e.g, `/greeting/status`) that will used to check that this service is healthy (must return HTTP Status 2xx).
+    DesiredCount:
+        Type: Number
+        Default: 2
+        Description: How many instances of this task should run across the cluster?
+    ImageRepository:
+        Type: String
+        Description: Name of the ECR repository from which to pull Docker images
+    ImageTag:
+        Type: String
+        Description: Tag of the Docker image to pull
+    VPCID:
+        Type: AWS::EC2::VPC::Id
+        Description: ID of the VPC in which the service and load balancer exist
+    LoadBalancerListenerArn:
+        Type: String
+        Description: ARN of the Load Balancer listener, to which this service should be attached at the given Path.
+    ECSClusterArn:
+        Type: String
+        Description: ARN of the ECS Cluster in which to deploy the service
+Resources:
+    TaskRole:
+        Type: AWS::IAM::Role
+        Properties:
+            AssumeRolePolicyDocument:
+                Statement:
+                    - Effect: Allow
+                      Principal:
+                          Service: ecs-tasks.amazonaws.com
+                      Action:
+                          - sts:AssumeRole
+            Path: /
+            # We don't have any Policies as our task does not call any AWS services
+    CloudWatchLogsGroup:
+        Type: AWS::Logs::LogGroup
+        Properties:
+            LogGroupName: !Sub "/ecs/${AppName}"
+            RetentionInDays: 30
+    TargetGroup:
+        Type: AWS::ElasticLoadBalancingV2::TargetGroup
+        Properties:
+            VpcId: !Ref VPCID
+            Port: 80
+            Protocol: HTTP
+            HealthCheckPath: !Ref HealthCheckPath
+            HealthCheckProtocol: HTTP
+            HealthCheckTimeoutSeconds: 2
+            HealthCheckIntervalSeconds: 5
+            HealthyThresholdCount: 2
+            Matcher:
+                HttpCode: 200-299
+            TargetGroupAttributes:
+                - Key: deregistration_delay.timeout_seconds
+                  Value: 10
+    ALBListenerRule:
+        Type: AWS::ElasticLoadBalancingV2::ListenerRule
+        Properties:
+            ListenerArn: !Ref LoadBalancerListenerArn
+            Priority: 2
+            Conditions:
+                - Field: path-pattern
+                  Values:
+                      - !Ref Path
+            Actions:
+                - TargetGroupArn: !Ref TargetGroup
+                  Type: forward
+    TaskDefinition:
+        Type: AWS::ECS::TaskDefinition
+        Properties:
+            Family: !Ref AppName
+            TaskRoleArn: !GetAtt TaskRole.Arn
+            ContainerDefinitions:
+                - Name: !Sub "${AppName}-web"
+                  Essential: true
+                  Image: !Sub ${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${ImageRepository}:${ImageTag}
+                  Cpu: 256
+                  Memory: 512
+                  PortMappings:
+                      - ContainerPort: 8000
+                  LogConfiguration:
+                      LogDriver: awslogs
+                      Options:
+                          awslogs-group: !Sub "/ecs/${AppName}"
+                          awslogs-region: !Ref AWS::Region
+                          awslogs-stream-prefix: web
+    ECSService:
+        Type: AWS::ECS::Service
+        Properties:
+            ServiceName: !Ref AppName
+            TaskDefinition: !Ref TaskDefinition
+            DesiredCount: !Ref DesiredCount
+            Cluster: !Ref ECSClusterArn
+            Role: !Sub arn:aws:iam::${AWS::AccountId}:role/ecsServiceRole
+            LoadBalancers:
+                - ContainerName: !Sub "${AppName}-web"
+                  ContainerPort: 8000 
+                  TargetGroupArn: !Ref TargetGroup
+Outputs:
+    ECSServiceArn:
+        Value: !Ref ECSService
+        Export:
+            Name: !Sub ${AWS::StackName}-ServiceArn
+    ECSTaskDefinitionArn:
+        Value: !Ref TaskDefinition
+        Export:
+            Name: !Sub ${AWS::StackName}-TaskDefinitionArn
