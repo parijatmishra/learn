@@ -17,8 +17,9 @@ Parameters:
         AllowedPattern: "[a-z0-9\\-_]{3,50}"
         Description: Friendly name for the app. Will be used for git repository, ECR repository, ECS task and service names, cloudwatch log groups,...
         ConstraintDescription: >-
-            Any combination of lowercase letters, numbers, underscores, and dashes between 
-            1 and 50 characters in length. Cannot end in .git.  Must begin and end with a letter or number.
+            Any combination of lowercase letters, numbers, underscores, and
+            dashes between 1 and 50 characters in length. Cannot end in .git.
+            Must begin and end with a letter or number.
 Resources:
     CodeCommitRepository:
         Type: AWS::CodeCommit::Repository
