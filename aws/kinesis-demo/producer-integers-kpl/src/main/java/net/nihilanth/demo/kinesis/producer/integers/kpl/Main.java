@@ -1,4 +1,4 @@
-package net.nihilanth.demo.producer;
+package net.nihilanth.demo.kinesis.producer.integers.kpl;
 
 import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.regions.Region;
@@ -23,13 +23,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * This class writes data to a Kinesis stream at a fixed rate, using the Kinesis Producer Library (KPL)
+ * This class writes data to a Kinesis stream at a fixed rate, using the Kinesis Main Library (KPL)
  * to aggregate logical records into Kinesis records and achieve high throughput.
  * <p>
- * <p>Each logical record is a 128-byte string, containing a Long formatted in decimal.</p>
+ * <p>Each logical record is a string of size DATA_SIZE, containing a Long formatted in decimal, followed by
+ * a space, followed by an arbitrary number of alphabetic characters to pad the string to the required size.</p>
  */
-public class Producer {
-    public static final Logger LOG = LoggerFactory.getLogger(Producer.class);
+public class Main
+{
+    public static final Logger LOG = LoggerFactory.getLogger(Main.class);
 
     public static final int DATA_SIZE;
     public static final int RECORDS_PER_SECOND;
@@ -118,8 +120,8 @@ public class Producer {
         final AtomicLong sequenceNumber = new AtomicLong(0);
 
         final KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration()
-                .setRecordMaxBufferedTime(0)
-                .setMaxConnections(24)
+                .setRecordMaxBufferedTime(1000)
+                .setMaxConnections(1)
                 .setRequestTimeout(60000)
                 .setRegion(KINESIS_REGION.getName());
         KinesisProducer kinesisProducer = new KinesisProducer(kinesisConfig);
@@ -143,47 +145,27 @@ public class Producer {
                     //
                     // Here we're going to look at the number of user records
                     // put over a 5 seconds sliding window.
+                    ShardMetrics metrics = new ShardMetrics(5);
+
                     try {
-                        kinesisProducer.getMetrics("UserRecordsPut", 5).forEach(m -> {
-                            m.getDimensions().forEach((k, v) -> {
-                                if (k.equals("ShardId")) {
-                                    final double avg = m.getSum() / 5;
-                                    LOG.info(String.format("[%s] UserRecordsPut/Sec       : %.2f", v, avg));
-                                }
+                        kinesisProducer.getMetrics("KinesisRecordsPut", 5).forEach(metric -> {
+                            metric.getDimensions().forEach((dim, val) -> {
+                                    metrics.setShardKinesisRecordsPut(val, metric.getSum());
                             });
                         });
-                        kinesisProducer.getMetrics("UserRecordsDataPut", 5).forEach(m -> {
-                            m.getDimensions().forEach((k, v) -> {
-                                if (k.equals("ShardId")) {
-                                    final double avg = m.getSum() / 5;
-                                    LOG.info(String.format("[%s] UserRecordsDataPut/Sec   : %.2f", v, avg));
-                                }
+                        kinesisProducer.getMetrics("KinesisRecordsDataPut", 5).forEach(metric -> {
+                            metric.getDimensions().forEach((dim, val) -> {
+                                    metrics.setShardKinesisRecordsDataPut(val, metric.getSum());
+                            });
+                        });
+                        kinesisProducer.getMetrics("AllErrors", 5).forEach(metric -> {
+                            metric.getDimensions().forEach((dim, val) -> {
+                                    metrics.setShardKinesisErrors(val, metric.getSum());
                             });
                         });
 
-                        kinesisProducer.getMetrics("KinesisRecordsPut", 5).forEach(m -> {
-                            m.getDimensions().forEach((k, v) -> {
-                                if (k.equals("ShardId")) {
-                                    final double avg = m.getSum() / 5;
-                                    LOG.info(String.format("[%s] KinesisRecordsPut/Sec    : %.2f", v, avg));
-                                }
-                            });
-                        });
-                        kinesisProducer.getMetrics("KinesisRecordsDataPut", 5).forEach(m -> {
-                            m.getDimensions().forEach((k, v) -> {
-                                if (k.equals("ShardId")) {
-                                    final double recordsPutPerSec = m.getSum() / 5;
-                                    LOG.info(String.format("[%s] KinesisRecordsDataPut/Sec: %.2f", v, recordsPutPerSec));
-                                }
-                            });
-                        });
-                        kinesisProducer.getMetrics("RetriesPerRecord", 5).forEach(m -> {
-                            m.getDimensions().forEach((k, v) -> {
-                                if (k.equals("ShardId")) {
-                                    final double recordsPutPerSec = m.getSum() / 5;
-                                    LOG.info(String.format("[%s] RetriesPerRecord/Sec     : %.2f", v, recordsPutPerSec));
-                                }
-                            });
+                        metrics.getShardNames().forEach(name -> {
+                            LOG.info(metrics.getShardMetic(name).toString());
                         });
 
                     } catch (Exception e) {
@@ -227,7 +209,7 @@ public class Producer {
             if (outstandingRecordsCount < 2*RECORDS_PER_SECOND) {
                 // LOG.info("Putting [" + RECORDS_PER_SECOND + "] records");
                 int count = 0;
-                while (count < RECORDS_PER_SECOND) {
+                while (count < RECORDS_PER_SECOND/4) {
                     final long number = sequenceNumber.getAndIncrement();
                     final ByteBuffer data = Utils.generateData(number, DATA_SIZE);
                     final String partitionKey = UUID.randomUUID().toString();
@@ -240,6 +222,6 @@ public class Producer {
             }
         };
         LOG.info("Starting....");
-        EXECUTOR_SERVICE.scheduleAtFixedRate(putRecords, 0, 1, TimeUnit.SECONDS);
+        EXECUTOR_SERVICE.scheduleAtFixedRate(putRecords, 0, 250, TimeUnit.MILLISECONDS);
     }
 }
