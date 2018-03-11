@@ -37,7 +37,7 @@ public class Main
     public static final int RECORDS_PER_SECOND;
     public static final Region KINESIS_REGION;
     public static final String KINESIS_STREAM_NAME;
-    public static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(24);
+    public static final ScheduledExecutorService EXECUTOR_SERVICE = Executors.newScheduledThreadPool(4);
 
     static {
         // KINESIS_REGION
@@ -121,7 +121,7 @@ public class Main
 
         final KinesisProducerConfiguration kinesisConfig = new KinesisProducerConfiguration()
                 .setRecordMaxBufferedTime(1000)
-                .setMaxConnections(1)
+                .setMaxConnections(4)
                 .setRequestTimeout(60000)
                 .setRegion(KINESIS_REGION.getName());
         KinesisProducer kinesisProducer = new KinesisProducer(kinesisConfig);
