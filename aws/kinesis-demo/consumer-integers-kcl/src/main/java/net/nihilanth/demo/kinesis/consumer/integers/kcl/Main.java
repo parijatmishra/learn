@@ -67,7 +67,7 @@ public class Main
         LOG.info(String.format("KINESIS_STREAM_NAME: %s", KINESIS_STREAM_NAME));
 
         final AWSCredentialsProvider credentialsProvider = new DefaultAWSCredentialsProviderChain();
-        final String workerId = InetAddress.getLocalHost().getCanonicalHostName() + ":" + UUID.randomUUID();
+        final String workerId = APP_NAME + ":" + UUID.randomUUID();
 
         final StatsLogger statsLogger = new StatsLogger(APP_NAME, workerId, 5);
 

@@ -1,0 +1,17 @@
+{
+    "cluster": "services-fargate-test",
+    "taskDefinition": "kinesis-consumer-integers-kcl-2",
+    "count": 2,
+    "launchType": "FARGATE",
+    "networkConfiguration": {
+        "awsvpcConfiguration": {
+            "subnets": [
+                "subnet-0959fb0a6c0ecef5a", "subnet-01bb4a97b01afc6ed"
+            ], 
+            "securityGroups": [
+                "sg-0e361ccaaf5077e9e"
+            ], 
+            "assignPublicIp": "DISABLED"
+        }
+    }
+}

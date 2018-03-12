@@ -29,7 +29,7 @@ export IMAGE_NAME=${MVN_ARTIFACT_ID}
 export IMAGE_REPO_NAME=${IMAGE_NAME}
 export IMAGE_TAG=${MVN_VERSION}-${GITHASH}
 
-export JARFILE=producer-integers-kpl.jar # We overrode the shaded jar name in pom.xml
+export JARFILE=consumer-integers-kcl.jar # We overrode the shaded jar name in pom.xml
 # export JARFILE=${MVN_ARTIFACT_ID}-${MVN_VERSION}.jar ## Normally this would be name of the shaded jar
 export JARPATH=${PROJECTDIR}/target/${JARFILE}
 

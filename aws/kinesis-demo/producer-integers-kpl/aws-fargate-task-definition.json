@@ -1,0 +1,42 @@
+{
+  "family": "kinesis-producer-integers-kpl",
+  "taskRoleArn": "arn:aws:iam::825739414361:role/ecs-producer-integers-kpl",
+  "executionRoleArn": "arn:aws:iam::825739414361:role/ecsTaskExecutionRole",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "image": "825739414361.dkr.ecr.us-east-1.amazonaws.com/producer-integers-kpl:LATEST",
+      "essential": true,
+      "name": "producer-integers-kpl",
+      "environment": [
+        {
+          "name": "DATA_SIZE",
+          "value": "128"
+        },
+        {
+          "name": "RECORDS_PER_SECOND",
+          "value": "1000"
+        },
+        {
+          "name": "KINESIS_STREAM_NAME",
+          "value": "scale-test"
+        },
+        {
+          "name": "KINESIS_REGION",
+          "value": "us-east-1"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-region": "us-east-1",
+          "awslogs-group": "/ecs/kinesis-demo/producer",
+          "awslogs-stream-prefix": "1"
+        }
+      }
+    }
+  ]
+}
