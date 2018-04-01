@@ -1,4 +1,4 @@
-package net.nihilanth.demo.producer;
+package net.nihilanth.demo.kinesis.producer.integers.kpl;
 
 import java.io.UnsupportedEncodingException;
 import java.math.BigInteger;

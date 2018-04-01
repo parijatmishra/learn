@@ -1,0 +1,38 @@
+{
+  "family": "kinesis-consumer-integers-kcl-1",
+  "taskRoleArn": "arn:aws:iam::825739414361:role/ecs-consumer-integers-kcl",
+  "executionRoleArn": "arn:aws:iam::825739414361:role/ecsTaskExecutionRole",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "image": "825739414361.dkr.ecr.us-east-1.amazonaws.com/consumer-integers-kcl:LATEST",
+      "essential": true,
+      "name": "consumer-integers-kcl-1",
+      "environment": [
+        {
+          "name": "APP_NAME",
+          "value": "consumer-1"
+        },
+        {
+          "name": "KINESIS_STREAM_NAME",
+          "value": "scale-test"
+        },
+        {
+          "name": "KINESIS_REGION",
+          "value": "us-east-1"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-region": "us-east-1",
+          "awslogs-group": "/ecs/kinesis-demo/consumer",
+          "awslogs-stream-prefix": "1"
+        }
+      }
+    }
+  ]
+}
