@@ -6,6 +6,7 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.kinesis.AmazonKinesis;
 import com.amazonaws.services.kinesis.AmazonKinesisClient;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.InitialPositionInStream;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration;
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.Worker;
 import com.amazonaws.services.kinesis.model.DescribeStreamResult;
@@ -72,7 +73,9 @@ public class Main
         final StatsLogger statsLogger = new StatsLogger(APP_NAME, workerId, 5);
 
         final KinesisClientLibConfiguration config = new KinesisClientLibConfiguration(APP_NAME, KINESIS_STREAM_NAME, credentialsProvider, workerId)
-                .withRegionName(KINESIS_REGION.getName());
+                .withRegionName(KINESIS_REGION.getName())
+                .withCleanupLeasesUponShardCompletion(true)
+                .withInitialPositionInStream(InitialPositionInStream.LATEST);
         final Worker worker = new Worker.Builder()
                 .recordProcessorFactory(new IntegerRecordProcessorFactory(APP_NAME, workerId, statsLogger))
                 .config(config)

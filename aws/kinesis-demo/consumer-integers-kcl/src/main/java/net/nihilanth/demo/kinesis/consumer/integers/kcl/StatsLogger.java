@@ -38,7 +38,7 @@ public class StatsLogger implements Runnable, IStatsLogger
 
     private synchronized void printStats() {
         for (IStatsProvider provider : providers) {
-            LOG.info(String.format("%s:%s:%s: records/sec=%.2f KB/s=%.2f",
+            LOG.info(String.format("%s:%s:%s: UserRecords/sec=%.2f KB/s=%.2f",
                                    appName,
                                    workerId,
                                    provider.getName(),

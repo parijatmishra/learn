@@ -70,7 +70,7 @@ public class ShardMetrics
         @Override
         public String toString()
         {
-            return String.format("%20s: records/s=%.2f KB/s=%.2f errors/sec=%.2f",
+            return String.format("%20s: UserRecords/s=%.2f KB/s=%.2f errors/sec=%.2f",
                           this.shardName,
                           this.recordPerSec,
                           this.bytesPerSec / 1024,

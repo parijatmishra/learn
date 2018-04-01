@@ -3,6 +3,7 @@ package net.nihilanth.demo.kinesis.consumer.integers.kcl;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.InvalidStateException;
 import com.amazonaws.services.kinesis.clientlibrary.exceptions.ShutdownException;
 import com.amazonaws.services.kinesis.clientlibrary.interfaces.v2.IRecordProcessor;
+import com.amazonaws.services.kinesis.clientlibrary.lib.worker.ShutdownReason;
 import com.amazonaws.services.kinesis.clientlibrary.types.InitializationInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ProcessRecordsInput;
 import com.amazonaws.services.kinesis.clientlibrary.types.ShutdownInput;
@@ -47,6 +48,7 @@ public class IntegerRecordProcessor implements IRecordProcessor, IStatsProvider
     public void processRecords(ProcessRecordsInput processRecordsInput)
     {
         final List<Record> records = processRecordsInput.getRecords();
+        // LOG.info(String.format("%s:%s:%s: UserRecords=%d", appName, workerId, shardId, records.size()));
         long sum = 0;
         for (Record r: records) {
             recordsCount.incrementAndGet();
@@ -64,14 +66,21 @@ public class IntegerRecordProcessor implements IRecordProcessor, IStatsProvider
             e.printStackTrace();
             System.exit(1);
         }
-
-        LOG.info(String.format("%s:%s:%s: sum=%d", appName, workerId, shardId, sum));
     }
 
     @Override
     public void shutdown(ShutdownInput shutdownInput)
     {
         LOG.info(String.format("%s:%s:%s: Shutting down: %s", appName, workerId, shardId, shutdownInput.getShutdownReason().toString()));
+        if (shutdownInput.getShutdownReason().equals(ShutdownReason.TERMINATE)) {
+            try {
+                shutdownInput.getCheckpointer().checkpoint();
+            } catch (InvalidStateException e) {
+                e.printStackTrace();
+            } catch (ShutdownException e) {
+                e.printStackTrace();
+            }
+        }
         statsLogger.removeStatsProvider(this);
     }
 

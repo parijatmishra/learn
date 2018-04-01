@@ -126,60 +126,58 @@ public class Main
                 .setRegion(KINESIS_REGION.getName());
         KinesisProducer kinesisProducer = new KinesisProducer(kinesisConfig);
 
-        Thread progress = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                while (true) {
-                    long put = sequenceNumber.get();
-                    long done = completed.get();
-                    LOG.info(String.format("Put %d, %d have completed", put, done));
-
-                    // Numerous metrics are available from the KPL locally, as
-                    // well as uploaded to CloudWatch. See the metrics
-                    // documentation for details.
-                    //
-                    // KinesisProducer provides methods to retrieve metrics for
-                    // the current instance, with a customizable time window.
-                    // This allows us to get sliding window statistics in real
-                    // time for the current host.
-                    //
-                    // Here we're going to look at the number of user records
-                    // put over a 5 seconds sliding window.
-                    ShardMetrics metrics = new ShardMetrics(5);
-
-                    try {
-                        kinesisProducer.getMetrics("KinesisRecordsPut", 5).forEach(metric -> {
-                            metric.getDimensions().forEach((dim, val) -> {
-                                    metrics.setShardKinesisRecordsPut(val, metric.getSum());
-                            });
-                        });
-                        kinesisProducer.getMetrics("KinesisRecordsDataPut", 5).forEach(metric -> {
-                            metric.getDimensions().forEach((dim, val) -> {
-                                    metrics.setShardKinesisRecordsDataPut(val, metric.getSum());
-                            });
-                        });
-                        kinesisProducer.getMetrics("AllErrors", 5).forEach(metric -> {
-                            metric.getDimensions().forEach((dim, val) -> {
-                                    metrics.setShardKinesisErrors(val, metric.getSum());
-                            });
-                        });
-
-                        metrics.getShardNames().forEach(name -> {
-                            LOG.info(metrics.getShardMetic(name).toString());
-                        });
-
-                    } catch (Exception e) {
-                        LOG.error("Unexpected error getting metrics", e);
-                        System.exit(1);
-                    }
-
-                    try {
-                        Thread.sleep(5000);
-                    } catch (InterruptedException e) {}
-                }
-            }
-        });
-        progress.start();
+//        Thread progress = new Thread(new Runnable() {
+//            @Override
+//            public void run() {
+//                while (true) {
+//                    long put = sequenceNumber.get();
+//                    long done = completed.get();
+//                    // Numerous metrics are available from the KPL locally, as
+//                    // well as uploaded to CloudWatch. See the metrics
+//                    // documentation for details.
+//                    //
+//                    // KinesisProducer provides methods to retrieve metrics for
+//                    // the current instance, with a customizable time window.
+//                    // This allows us to get sliding window statistics in real
+//                    // time for the current host.
+//                    //
+//                    // Here we're going to look at the number of user records
+//                    // put over a 5 seconds sliding window.
+//                    ShardMetrics metrics = new ShardMetrics(5);
+//
+//                    try {
+//                        kinesisProducer.getMetrics("UserRecordsPut", 5).forEach(metric -> {
+//                            metric.getDimensions().forEach((dim, val) -> {
+//                                    metrics.setShardKinesisRecordsPut(val, metric.getSum());
+//                            });
+//                        });
+//                        kinesisProducer.getMetrics("UserRecordsDataPut", 5).forEach(metric -> {
+//                            metric.getDimensions().forEach((dim, val) -> {
+//                                    metrics.setShardKinesisRecordsDataPut(val, metric.getSum());
+//                            });
+//                        });
+//                        kinesisProducer.getMetrics("AllErrors", 5).forEach(metric -> {
+//                            metric.getDimensions().forEach((dim, val) -> {
+//                                    metrics.setShardKinesisErrors(val, metric.getSum());
+//                            });
+//                        });
+//
+//                        metrics.getShardNames().forEach(name -> {
+//                            LOG.info(metrics.getShardMetic(name).toString());
+//                        });
+//
+//                    } catch (Exception e) {
+//                        LOG.error("Unexpected error getting metrics", e);
+//                        System.exit(1);
+//                    }
+//
+//                    try {
+//                        Thread.sleep(5000);
+//                    } catch (InterruptedException e) {}
+//                }
+//            }
+//        });
+//        progress.start();
 
         // Result Handler
         final FutureCallback<UserRecordResult> callback = new FutureCallback<UserRecordResult>() {
