@@ -117,6 +117,16 @@ fun testIsWhen() {
     // Should print/: "x is a String"
 }
 
+open class A(val x: Int) {
+    public open val y: Int = x
+}
+
+fun testMakeObject() {
+    val o = object : A(5) {
+        override val y = 15
+    }
+}
+
 fun main(args: Array<String>) {
     println("Hello, World!")
     print("as:                          "); unsafeCast()
