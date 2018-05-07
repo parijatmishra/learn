@@ -125,6 +125,8 @@ fun testMakeObject() {
     val o = object : A(5) {
         override val y = 15
     }
+    println("${o.y}")
+    // Should print: "15"
 }
 
 fun main(args: Array<String>) {
@@ -140,5 +142,5 @@ fun main(args: Array<String>) {
     print("testIfExpression:            "); testIfExpression()
     print("testInWhen:                  "); testInWhen()
     print("testIsWhen:                  "); testIsWhen()
-
+    print("testMakeObject:              "); testMakeObject()
 }
