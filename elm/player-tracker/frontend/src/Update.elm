@@ -1,13 +1,13 @@
 module Update exposing (..)
 
 import Models exposing (Model)
-import Msgs exposing (Msg (NoOp))
+import Msgs exposing (Msg (OnFetchPlayers))
 
 -- UPDATE
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        NoOp ->
-            ( model, Cmd.none )
+        OnFetchPlayers response ->
+            ( { model | players = response }, Cmd.none )
 
 
