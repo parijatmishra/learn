@@ -10,7 +10,7 @@ Nothing to build. Just install the packages:
 yarn install
 ```
 
-If you don't have `yarm`, install it like this:
+If you don't have `yarn`, install it like this:
 ```
 npm install -g yarn
 ```
@@ -18,5 +18,7 @@ npm install -g yarn
 ## Running it
 
 ```
-node api.js
+yarn server
 ```
+
+and navigate to `http://localhost:4000/`
