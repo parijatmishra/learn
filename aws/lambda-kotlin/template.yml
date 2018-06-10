@@ -1,0 +1,13 @@
+AWSTemplateFormatVersion: 2010-09-09
+Transform:
+- AWS::Serverless-2016-10-31
+
+Resources:
+  MyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      MemorySize: 128
+      Timeout: 30
+      Handler: com.aws.blog.jvmlangs.kotlin.Main::handler
+      Runtime: java8
+      CodeUri: ./build/libs/jvmlangs-kotlin-1.0-SNAPSHOT-all.jar
