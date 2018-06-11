@@ -1,13 +1,18 @@
 module Update exposing (..)
 
 import Models exposing (Model)
-import Msgs exposing (Msg (OnFetchPlayers))
+import Msgs exposing (Msg)
+import Routing exposing (parseLocation)
 
 -- UPDATE
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        OnFetchPlayers response ->
+        Msgs.OnFetchPlayers response ->
             ( { model | players = response }, Cmd.none )
+        Msgs.OnLocationChange location ->
+            let newRoute = parseLocation location
+            in  ( { model | route = newRoute }, Cmd.none )
+
 
 
