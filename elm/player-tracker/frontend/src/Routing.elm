@@ -1,4 +1,4 @@
-module Routing exposing (parseLocation)
+module Routing exposing (parseLocation, playersPath, playerPath)
 
 import Navigation   exposing (Location)
 import UrlParser    exposing ((</>), s, string, top, map, oneOf, Parser, parseHash)
@@ -17,3 +17,9 @@ parseLocation location =
     case (parseHash matchers location) of
         Just route -> route
         Nothing -> NotFoundRoute
+
+playersPath : String
+playersPath = "#players"
+
+playerPath : PlayerId -> String
+playerPath playerId = "#players/" ++ playerId
