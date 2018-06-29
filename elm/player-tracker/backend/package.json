@@ -1,0 +1,13 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Dummy backend server for player-tracker frontend",
+  "main": "api.js",
+  "license": "MIT",
+  "dependencies": {
+    "json-server": "^0.14.0"
+  },
+  "scripts": {
+    "server": "node api.js"
+  }
+}
