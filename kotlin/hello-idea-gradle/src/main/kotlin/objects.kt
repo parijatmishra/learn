@@ -42,6 +42,29 @@ class D(val prop: Int) {
     }
 }
 
+
+/*
+ * Object declarations
+ */
+object Singleton {
+    fun foo(): Int = 10
+}
+
+fun doSomething(): Int = Singleton.foo()
+
+/*
+ * Companions
+ */
+interface Factory<T> {
+    fun create(): T
+}
+
+class MyClass {
+    companion object : Factory<MyClass> {
+        override fun create(): MyClass = MyClass()
+    }
+}
+
 fun main(args: Array<String>) {
     C().test()
     println(D(4).foo(5)) // Should print: 4 + 5 + 6 + 8 + 7 == "30"
