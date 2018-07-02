@@ -79,18 +79,18 @@ Resources:
             mutation: Mutation
         }      
         type Query {
-            allPostsByTag(tag: String!, count: Int, nextToken: String): PaginatedPosts!
-            allPostsByAuthor(author: String!, count: Int, nextToken: String): PaginatedPosts!
             allPost(count: Int, nextToken: String): PaginatedPosts!
             getPost(id: ID!): Post
         }
         type Mutation {
-            addComment(id: ID!, author: String!, comment: String!): Post
-            addTag(id: ID!, tag: String!): Post
-            removeTag(id: ID!, tag: String!): Post
+            addPost(
+                id: ID!,
+                author: String!,
+                title: String!,
+                content: String!,
+                url: String!
+            ): Post!
             deletePost(id: ID!, expectedVersion: Int): Post
-            upvotePost(id: ID!): Post
-            downvotePost(id: ID!): Post
             updatePost(
                 id: ID!,
                 author: String,
@@ -99,12 +99,8 @@ Resources:
                 url: String,
                 expectedVersion: Int!
             ): Post
-            addPost(
-                author: String!,
-                title: String!,
-                content: String!,
-                url: String!
-            ): Post!
+            upvotePost(id: ID!): Post
+            downvotePost(id: ID!): Post            
         }
         type PaginatedPosts {
             posts: [Post!]!
@@ -119,10 +115,6 @@ Resources:
             ups: Int!
             downs: Int!
             version: Int!
-            tags: [String!]
-            comments: [Comment!]
-            created: String
-            lastUpdated: String
         }
         type Comment {
             author: String!
@@ -186,73 +178,6 @@ Resources:
             #end
         }
 
-  QueryAllPostsByAuthorResolver:
-    Type: "AWS::AppSync::Resolver"
-    DependsOn: GraphQLSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DataSourceName: !GetAtt PostsDataSource.Name
-      TypeName: Query
-      FieldName: allPostsByAuthor
-      RequestMappingTemplate: |
-        {
-            "version" : "2017-02-28",
-            "operation" : "Query",
-            "index" : "author-index",
-            "query" : {
-              "expression": "author = :author",
-                "expressionValues" : {
-                  ":author" : $util.dynamodb.toDynamoDBJson($ctx.args.author)
-                }
-            },
-            #if( $ctx.args.count )
-                "limit": $ctx.args.count,
-            #end
-            #if( ${ctx.args.nextToken} )
-                "nextToken": "${ctx.args.nextToken}",
-            #end
-        }
-      ResponseMappingTemplate: |
-        {
-            "posts": $utils.toJson($ctx.result.items),
-            #if( ${ctx.result.nextToken} )
-                "nextToken": "${ctx.result.nextToken}",
-            #end
-        }
-
-  QueryAllPostsByTagResolver:
-    Type: "AWS::AppSync::Resolver"
-    DependsOn: GraphQLSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DataSourceName: !GetAtt PostsDataSource.Name
-      TypeName: Query
-      FieldName: allPostsByTag
-      RequestMappingTemplate: |
-        {
-            "version" : "2017-02-28",
-            "operation" : "Scan",
-            "filter": {
-              "expression": "contains (tags, :tag)",
-                "expressionValues": {
-                  ":tag": $util.dynamodb.toStringJson($ctx.args.tag)
-                }
-            },
-            #if( $ctx.args.count )
-                "limit": $ctx.args.count,
-            #end
-            #if( ${ctx.args.nextToken} )
-                "nextToken": "${ctx.args.nextToken}"
-            #end
-        }
-      ResponseMappingTemplate: |
-        {
-            "posts": $utils.toJson($ctx.result.items),
-            #if( ${ctx.result.nextToken} )
-                "nextToken": "${ctx.result.nextToken}",
-            #end
-        }
-
   MutationAddPostResolver:
     Type: "AWS::AppSync::Resolver"
     DependsOn: GraphQLSchema
@@ -262,108 +187,21 @@ Resources:
       TypeName: Mutation
       FieldName: addPost
       RequestMappingTemplate: |
-        #set( $d = $util.dynamodb )
-        #set( $values = $d.toMapValues($ctx.args) )
-        $!{values.put("ups", $d.toNumber(1))}
-        $!{values.put("downs", $d.toNumber(0))}
-        $!{values.put("version", $d.toNumber(1))}
-        $!{values.put("created", $d.toDynamoDB($util.time.nowISO8601()))}
-        $!{values.put("lastUpdated", $values.get("created"))}
         {
             "version" : "2017-02-28",
             "operation" : "PutItem",
             "key" : {
-                "id" : $d.toStringJson($utils.autoId())
+                "id" : { "S" : "${context.arguments.id}" }
             },
-            "attributeValues" : $util.toJson($values),
-        }
-      ResponseMappingTemplate: "$util.toJson($ctx.result)"
-
-  MutationAddCommentResolver:
-    Type: "AWS::AppSync::Resolver"
-    DependsOn: GraphQLSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DataSourceName: !GetAtt PostsDataSource.Name
-      TypeName: Mutation
-      FieldName: addComment
-      RequestMappingTemplate: |
-        {
-            "version" : "2017-02-28",
-            "operation" : "UpdateItem",
-            "key" : {
-                "id" : $util.dynamodb.toStringJson($ctx.args.id)
-            },
-            "update" : {
-                "expression" : "SET comments = list_append(if_not_exists(comments, :emptyList), :newComment), lastUpdated = :lastUpdated ADD version :plusOne",
-                "expressionValues" : {
-                    ":emptyList": $util.dynamodb.toListJson([]),
-                    ":newComment" : $util.dynamodb.toListJson([$util.map.copyAndRetainAllKeys($ctx.args, ["author","comment"])]),
-                    ":plusOne" : $util.dynamodb.toNumberJson(1),
-                    ":lastUpdated" : $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
-                }
-            },
-            "condition" : {
-                "expression" : "attribute_exists(id)"
-            },
-        }
-      ResponseMappingTemplate: "$util.toJson($ctx.result)"
-
-  MutationAddTagResolver:
-    Type: "AWS::AppSync::Resolver"
-    DependsOn: GraphQLSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DataSourceName: !GetAtt PostsDataSource.Name
-      TypeName: Mutation
-      FieldName: addTag
-      RequestMappingTemplate: |
-        {
-            "version" : "2017-02-28",
-            "operation" : "UpdateItem",
-            "key" : {
-                "id" : $util.dynamodb.toStringJson($ctx.args.id)
-            },
-            "update" : {
-                "expression" : "ADD tags :tags, version :plusOne SET lastUpdated = :lastUpdated",
-                "expressionValues" : {
-                    ":tags" : $util.dynamodb.toStringSetJson([$ctx.args.tag]),
-                    ":plusOne" : $util.dynamodb.toNumberJson(1),
-                    ":lastUpdated" : $util.dynamodb.toDynamoDBJson($util.time.nowISO8601()),
-                }
-            },
-            "condition" : {
-                "expression" : "attribute_exists(id)"
-            },
-        }
-      ResponseMappingTemplate: "$util.toJson($ctx.result)"
-
-  MutationRemoveTagResolver:
-    Type: "AWS::AppSync::Resolver"
-    DependsOn: GraphQLSchema
-    Properties:
-      ApiId: !GetAtt GraphQLApi.ApiId
-      DataSourceName: !GetAtt PostsDataSource.Name
-      TypeName: Mutation
-      FieldName: removeTag
-      RequestMappingTemplate: |
-        {
-            "version" : "2017-02-28",
-            "operation" : "UpdateItem",
-            "key" : {
-                "id" : $util.dynamodb.toStringJson($ctx.args.id)
-            },
-            "update" : {
-                "expression" : "DELETE tags :tags ADD version :plusOne SET lastUpdated = :lastUpdated",
-                "expressionValues" : {
-                    ":tags" : $util.dynamodb.toStringSetJson([$ctx.args.tag]),
-                    ":plusOne" : $util.dynamodb.toNumberJson(1),
-                    ":lastUpdated" : $util.dynamodb.toDynamoDBJson($util.time.nowISO8601()),
-                }
-            },
-            "condition" : {
-                "expression" : "attribute_exists(id)"
-            },
+            "attributeValues" : {
+                "author": { "S" : "${context.arguments.author}" },
+                "title": { "S" : "${context.arguments.title}" },
+                "content": { "S" : "${context.arguments.content}" },
+                "url": { "S" : "${context.arguments.url}" },
+                "ups" : { "N" : 1 },
+                "downs" : { "N" : 0 },
+                "version" : { "N" : 1 }
+            }
         }
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
@@ -380,15 +218,15 @@ Resources:
             "version" : "2017-02-28",
             "operation" : "DeleteItem",
             "key": {
-                "id": $util.dynamodb.toStringJson($ctx.args.id)
-            },
-            #if( $ctx.args.containsKey("expectedVersion") )
-                "condition" : {
+                "id": { "S" : "${context.arguments.id}"}
+            }
+            #if( $context.arguments.containsKey("expectedVersion") )
+                ,"condition" : {
                     "expression"       : "attribute_not_exists(id) OR version = :expectedVersion",
                     "expressionValues" : {
-                        ":expectedVersion" : $util.dynamodb.toNumberJson($ctx.args.expectedVersion)
+                        ":expectedVersion" : { "N" : ${context.arguments.expectedVersion} }
                     }
-                },
+                }
             #end
         }
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
@@ -406,13 +244,12 @@ Resources:
             "version" : "2017-02-28",
             "operation" : "UpdateItem",
             "key" : {
-                "id" : $util.dynamodb.toStringJson($ctx.args.id)
+                "id" : { "S" : "${context.arguments.id}" }
             },
             "update" : {
-                "expression" : "ADD ups :plusOne, version :plusOne SET lastUpdated = :lastUpdated",
+                "expression" : "ADD ups :plusOne, version :plusOne",
                 "expressionValues" : {
-                    ":plusOne" : $util.dynamodb.toNumberJson(1),
-                    ":lastUpdated" : $util.dynamodb.toDynamoDBJson($util.time.nowISO8601())
+                    ":plusOne" : { "N" : 1 }
                 }
             },
             "condition" : {
@@ -434,19 +271,18 @@ Resources:
             "version" : "2017-02-28",
             "operation" : "UpdateItem",
             "key" : {
-                "id" : $util.dynamodb.toStringJson($ctx.args.id)
+                "id" : { "S" : "${context.arguments.id}" }
             },
             "update" : {
-                "expression" : "ADD downs :plusOne, version :plusOne SET lastUpdated = :lastUpdated",
+                "expression" : "ADD downs :plusOne, version :plusOne",
                 "expressionValues" : {
-                    ":plusOne" : $util.dynamodb.toNumberJson(1),
-                    ":lastUpdated" : $util.dynamodb.toDynamoDBJson($util.time.nowISO8601()),
+                    ":plusOne" : { "N" : 1 }
                 }
             },
             "condition" : {
                 "expression" : "attribute_exists(id)"
             },
-        }
+        }            
       ResponseMappingTemplate: "$util.toJson($ctx.result)"
 
   MutationUpdatePostResolver:
@@ -458,49 +294,54 @@ Resources:
       TypeName: Mutation
       FieldName: updatePost
       RequestMappingTemplate: |
-        #set( $ddb = $util.dynamodb )
         {
             "version" : "2017-02-28",
             "operation" : "UpdateItem",
             "key" : {
-                "id" : $ddb.toDynamoDBJson($ctx.args.id)
+                "id" : { "S" : "${context.arguments.id}" }
             },
+
             ## Set up some space to keep track of things we're updating **
             #set( $expNames  = {} )
             #set( $expValues = {} )
             #set( $expSet = {} )
             #set( $expAdd = {} )
             #set( $expRemove = [] )
+
             ## Increment "version" by 1 **
             $!{expAdd.put("version", ":one")}
-            $!{expValues.put(":one", $ddb.toDynamoDB(1))}
-            ## Set the "lastUpdated" timestamp **
-            $!{expSet.put("lastUpdated", ":lastUpdated")}
-            $!{expValues.put(":lastUpdated", $ddb.toDynamoDB($util.time.nowISO8601()))}
+            $!{expValues.put(":one", { "N" : 1 })}
+
             ## Iterate through each argument, skipping "id" and "expectedVersion" **
-            #foreach( $entry in $util.map.copyAndRemoveAllKeys($ctx.args, ["id","expectedVersion"]).entrySet() )
-                #if( $util.isNull($entry.value) )
-                    ## If the argument is set to "null", then remove that attribute from the item in DynamoDB **
-                    #set( $discard = ${expRemove.add("#${entry.key}")} )
-                    $!{expNames.put("#${entry.key}", "${entry.key}")}
-                #else
-                    ## Otherwise set (or update) the attribute on the item in DynamoDB **
-                    $!{expSet.put("#${entry.key}", ":${entry.key}")}
-                    $!{expNames.put("#${entry.key}", "${entry.key}")}
-                    $!{expValues.put(":${entry.key}", $ddb.toDynamoDB($entry.value))}
+            #foreach( $entry in $context.arguments.entrySet() )
+                #if( $entry.key != "id" && $entry.key != "expectedVersion" )
+                    #if( (!$entry.value) && ("$!{entry.value}" == "") )
+                        ## If the argument is set to "null", then remove that attribute from the item in DynamoDB **
+
+                        #set( $discard = ${expRemove.add("#${entry.key}")} )
+                        $!{expNames.put("#${entry.key}", "$entry.key")}
+                    #else
+                        ## Otherwise set (or update) the attribute on the item in DynamoDB **
+
+                        $!{expSet.put("#${entry.key}", ":${entry.key}")}
+                        $!{expNames.put("#${entry.key}", "$entry.key")}
+                        $!{expValues.put(":${entry.key}", { "S" : "${entry.value}" })}
+                    #end
                 #end
             #end
+
             ## Start building the update expression, starting with attributes we're going to SET **
             #set( $expression = "" )
             #if( !${expSet.isEmpty()} )
                 #set( $expression = "SET" )
-                foreach( $entry in $expSet.entrySet() )
-                    set( $expression = "${expression} ${entry.key} = ${entry.value}" )
-                    if ( $foreach.hasNext )
-                        set( $expression = "${expression}," )
-                    end
-                end
-            end
+                #foreach( $entry in $expSet.entrySet() )
+                    #set( $expression = "${expression} ${entry.key} = ${entry.value}" )
+                    #if ( $foreach.hasNext )
+                        #set( $expression = "${expression}," )
+                    #end
+                #end
+            #end
+
             ## Continue building the update expression, adding attributes we're going to ADD **
             #if( !${expAdd.isEmpty()} )
                 #set( $expression = "${expression} ADD" )
@@ -511,9 +352,11 @@ Resources:
                     #end
                 #end
             #end
+
             ## Continue building the update expression, adding attributes we're going to REMOVE **
             #if( !${expRemove.isEmpty()} )
                 #set( $expression = "${expression} REMOVE" )
+
                 #foreach( $entry in $expRemove )
                     #set( $expression = "${expression} ${entry}" )
                     #if ( $foreach.hasNext )
@@ -521,20 +364,22 @@ Resources:
                     #end
                 #end
             #end
+
             ## Finally, write the update expression into the document, along with any expressionNames and expressionValues **
             "update" : {
-                "expression" : "${expression}",
+                "expression" : "${expression}"
                 #if( !${expNames.isEmpty()} )
-                    "expressionNames" : $utils.toJson($expNames),
+                    ,"expressionNames" : $utils.toJson($expNames)
                 #end
                 #if( !${expValues.isEmpty()} )
-                    "expressionValues" : $utils.toJson($expValues),
+                    ,"expressionValues" : $utils.toJson($expValues)
                 #end
             },
+
             "condition" : {
-                "expression"       : "attribute_exists(id) and version = :expectedVersion",
+                "expression"       : "version = :expectedVersion",
                 "expressionValues" : {
-                    ":expectedVersion" : $ddb.toDynamoDBJson($context.arguments.expectedVersion)
+                    ":expectedVersion" : { "N" : ${context.arguments.expectedVersion} }
                 }
             }
         }
