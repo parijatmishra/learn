@@ -42,7 +42,7 @@ def stack_events(stack_name):
 
     # print in chronological order
     lst = []
-    for k, v in resource_events.iteritems():
+    for k, v in resource_events.items():
         lst.append(v)
     lst = sorted(lst, key=lambda k: k['Timestamp'])
     max_LogicalResourceId_len = max(len(i['LogicalResourceId']) for i in lst)
@@ -51,7 +51,7 @@ def stack_events(stack_name):
 
     format = "%%%ds %%-%ds %%-%ds %%-%ds" % (33, max_LogicalResourceId_len, max_ResourceStatus_len, max_ResourceStatusReason_len)
     for i in lst:
-        print format % (i['Timestamp'], i['LogicalResourceId'], i['ResourceStatus'], i['ResourceStatusReason'])
+        print(format % (i['Timestamp'], i['LogicalResourceId'], i['ResourceStatus'], i['ResourceStatusReason']))
 
 
 HALT_STATES=['CREATE_FAILED', 'CREATE_COMPLETE', 'ROLLBACK_FAILED',
@@ -68,24 +68,24 @@ PROGRESS_STATES=['CREATE_IN_PROGRESS', 'ROLLBACK_IN_PROGRESS',
 try:
     while True:
         status=get_status(stack_name)
-        print status
-        print "==================================="
+        print(status)
+        print("===================================")
         try:
             stack_events(stack_name)
         except botocore.exceptions.ClientError:
-            print "Stack does not exist."
+            print("Stack does not exist.")
             sys.exit(0)
 
         if status is None or status in HALT_STATES:
             break
-        print ""
-        print "Sleeping..."
-        print ""
+        print("")
+        print("Sleeping...")
+        print("")
 
         time.sleep(10)
-except ClientError, e:
+except ClientError as e:
     if ("Stack with id " + stack_name + " does not exist") in str(e):
-        print "Stack does not exist."
+        print("Stack does not exist.")
         sys.exit(0)
     else:
         raise e
