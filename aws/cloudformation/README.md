@@ -7,7 +7,10 @@ Cloudformation template examples.
   Launch an EC2 Container Service cluster in a pre-created VPC of your choice,
   using a pre-created security group.  You can SSH into the cluster instances
   using the SSH key specified.  See sample parameters in `CFN_ECS_Cluster_Existing_VPC.input.json`.
-  the command line like so:
+
+  You can run it like this:
+
+      aws cloudformation create-stack --stack-name SomeStackName --parameters `cat CFN_ECS_Cluster_Existing_VPC_input.json` --capabilities CAPABILIT_IAM
 
 - CFN_VPC_Basic.cfn.yaml
 
