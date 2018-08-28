@@ -2,6 +2,16 @@
 
 Cloudformation template examples.
 
+- CFN_S3_Basic.yaml
+
+  A very basic template that creates an S3 bucket with a auto-generated name, and tags it.
+
+  You can run it like this:
+
+      aws cloudformation create-stack --stack-name some-name --tags StackTag=SomeVal
+  
+  The resulting S3 bucket will have two tags: StackTag=SomeVal and Department=SharedServices.
+
 - CFN_ECS_Cluster_Existing_VPC.json
 
   Launch an EC2 Container Service cluster in a pre-created VPC of your choice,
