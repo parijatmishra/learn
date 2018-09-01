@@ -2,6 +2,16 @@
 
 Cloudformation template examples.
 
+- AWS_non_taggable_resources.txt
+  AWS_taggable_resources.txt
+
+  These files are produced from `CloudFormationResourceSpecification.json`
+  by the script `cfn-taggable-resources.sh`, which required `jq` to run.
+
+  The `CloudFormationResourceSpecification.json` file can be obtained from
+
+  https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/cfn-resource-specification.html
+  
 - CFN_S3_Basic.yaml
 
   A very basic template that creates an S3 bucket with a auto-generated name, and tags it.
