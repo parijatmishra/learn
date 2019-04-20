@@ -6,6 +6,7 @@ app=Flask(__name__)
 @app.route('/')
 @app.route('/<name>')
 def hello(name=None):
+    print("Request: {}".format(name))
     return render_template('hello.html', name=name)
 
 if __name__ == '__main__':
