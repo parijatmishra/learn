@@ -1,0 +1,75 @@
+\documentclass[11pt,a4paper,twoside]{article}
+\usepackage[left=1.5cm,right=2cm,top=1.5cm,bottom=2cm,marginparwidth=1.5cm,showframe]{geometry}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Headers and footers
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+\fancyhf{}
+\fancyfoot[LO]{\small Amazon Confidential}
+\fancyfoot[RE]{\small Amazon Confidential}
+\fancyfoot[RO]{\small Page \thepage{} of \pageref{LastPage}}
+\fancyfoot[LE]{\small Page \thepage{} of \pageref{LastPage}}
+\renewcommand{\footrulewidth}{0.4pt}
+\renewcommand{\headrulewidth}{0pt}
+\fancypagestyle{plain}{}
+\pagestyle{fancy}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Custom section titles
+\usepackage[tiny,compact,explicit]{titlesec}
+% \titlelabel{\thetitle.\quad} %% will be over-ridden by titleformat below
+%% \titleformat{〈command〉}[〈shape〉]{〈format〉}{〈label〉}{〈sep〉}{〈before-code〉}[〈after-code〉]
+\titleformat{\section}{\bf}{\underline{\thesection.\enspace}}{-0.15em}{\underline{\MakeUppercase{#1}}}
+\titleformat{\subsection}{\bf}{\thesubsection.\enspace}{-0.15em}{\MakeUppercase{#1}}
+\titleformat{\subsubsection}{\normalfont}{\underline{\thesubsubsection.\enspace}}{-0.15em}{\underline{\MakeUppercase{#1}}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Lorem Impsum text generator for testing.
+% For real text, comment/delete this package, and the \lipsum commands
+% below.
+\usepackage{lipsum}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{document}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Using raw font, size and placing for a title, instead of \maketitle
+% because that command insists on having an author and date, and puts
+% lots of spacing that is hard to control.
+\begin{center}
+    \textbf{\underline{%
+    Lorem ipsum dolor sit amet consectetuer adipiscing elit
+    }}
+\end{center}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Depth of \tableofcontents
+\setcounter{tocdepth}{2}
+\tableofcontents
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Introduction}
+\marginpar{A margin note}
+
+\lipsum[1-2]
+\section{Section}
+\subsection{Subsection}
+\subsubsection{Sub-subsection}
+\lipsum[3]
+\paragraph{Outline}
+\lipsum[4]. Here is a reference: Section \ref{conclusions}.\footnote{Some footnote.}
+
+\section{Conclusions}\label{conclusions}
+There is no longer \LaTeX{} example which was written by \cite{doe}.
+
+
+\begin{thebibliography}{9}
+\bibitem[Doe]{doe} \emph{First and last \LaTeX{} example.},
+John Doe 50 B.C. 
+\end{thebibliography}
+
+\end{document}
