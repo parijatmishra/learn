@@ -1,5 +1,6 @@
 use std::num::ParseIntError;
 
+#[allow(dead_code)]
 pub fn run() {
     let strings: Vec<&str> = vec!["93", "tofu", "18"];
 
