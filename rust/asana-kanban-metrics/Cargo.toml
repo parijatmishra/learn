@@ -1,5 +1,5 @@
 [package]
-name = "asana-kanban-metrics"
+name = "metrics"
 version = "0.1.0"
 authors = ["Parijat Mishra <parijat.mishra@gmail.com>"]
 edition = "2018"
@@ -16,4 +16,5 @@ futures = "0.3"
 chrono = { version = "0.4", features = ["serde"] }
 hyper = "0.13"
 hyper-tls = "0.4"
-tokio = { version = "0.2", features = ["default"] }
+tokio = { version = "0.2", features = ["default", "time"] }
+percent-encoding = "2.1"

@@ -1,74 +1,91 @@
-use crate::asana::AsanaError::Missing;
+use chrono::{DateTime, Utc};
 use hyper::body::HttpBody;
 use hyper::client::connect::dns::GaiResolver;
 use hyper::client::HttpConnector;
 use hyper::{header, Body, Method, Request, Response, Uri};
 use hyper_tls::HttpsConnector;
-use log;
-use serde::Deserialize;
+use percent_encoding::{utf8_percent_encode, AsciiSet, CONTROLS};
+use serde::{Deserialize, Serialize};
 use serde_json;
 use std::collections::HashMap;
 use std::fmt;
+use std::sync::Arc;
 
-// ------
-
-static BASE_URL: &str = "https://app.asana.com/api/1.0";
-
-pub struct AsanaClient<'a> {
-    client: hyper::Client<HttpsConnector<HttpConnector<GaiResolver>>>,
-    token: &'a str,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaData {
+    pub users: Vec<AsanaUser>,
+    pub projects: Vec<AsanaProject>,
+    pub project_sections: Vec<AsanaProjectSections>,
+    pub project_task_gids: Vec<AsanaProjectTaskGids>,
+    pub tasks: Vec<AsanaTask>,
+    pub task_stories: Vec<AsanaTaskStories>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct AsanaEmbeddedObject {
-    pub gid: String,
-    pub name: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AsanaProject {
     pub gid: String,
     pub name: String,
     pub created_at: chrono::DateTime<chrono::Utc>,
 }
 
-#[derive(Debug)]
-pub struct AsanaProjectSections<'a> {
-    pub project_gid: &'a str,
-    pub sections: Vec<AsanaEmbeddedObject>,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaProjectSections {
+    pub project_gid: String,
+    pub sections: Vec<AsanaSection>,
 }
 
-#[derive(Debug)]
-pub struct AsanaProjectTaskGids<'a> {
-    pub project_gid: &'a str,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaSection {
+    pub gid: String,
+    pub name: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaTaskCompact {
+    pub gid: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaAssigneeCompact {
+    pub gid: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaMembershipCompact {
+    pub gid: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaProjectTaskGids {
+    pub project_gid: String,
     pub task_gids: Vec<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AsanaTask {
     pub gid: String,
     pub name: String,
-    pub created_at: String,
+    pub created_at: chrono::DateTime<chrono::Utc>,
     pub completed: bool,
     pub completed_at: Option<chrono::DateTime<chrono::Utc>>,
-    pub assignee: Option<AsanaEmbeddedObject>,
-    pub memberships: Vec<HashMap<String, AsanaEmbeddedObject>>,
+    pub assignee: Option<AsanaAssigneeCompact>,
+    pub memberships: Vec<HashMap<String, AsanaMembershipCompact>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AsanaStory {
     pub created_at: chrono::DateTime<chrono::Utc>,
     pub resource_subtype: String,
     pub text: String,
 }
 
-#[derive(Debug)]
-pub struct AsanaTaskStories<'a> {
-    pub task_gid: &'a str,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AsanaTaskStories {
+    pub task_gid: String,
     pub stories: Vec<AsanaStory>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct AsanaUser {
     pub gid: String,
     pub name: String,
@@ -84,6 +101,11 @@ impl AsanaUser {
         }
     }
 }
+
+// ------
+
+static BASE_URL: &str = "https://app.asana.com/api/1.0";
+
 // ------ Internal helper structs
 
 #[derive(Debug, Deserialize)]
@@ -116,11 +138,39 @@ impl fmt::Display for AsanaError {
 
 impl std::error::Error for AsanaError {}
 
+// ------
+// https://url.spec.whatwg.org/#query-percent-encode-set
+const QUERY_CONTROL_SET: &AsciiSet = &CONTROLS.add(b'+');
+fn query_encode(query_str: &str) -> String {
+    utf8_percent_encode(query_str, QUERY_CONTROL_SET).collect()
+}
+
+// ------
+
+pub struct AsanaClient<'a> {
+    client: hyper::Client<HttpsConnector<HttpConnector<GaiResolver>>>,
+    token: &'a str,
+    rate_limiter: Option<Arc<futures::lock::Mutex<tokio::time::Interval>>>,
+}
+
 impl<'a> AsanaClient<'a> {
-    pub fn new(token: &str) -> AsanaClient {
+    pub fn new(token: &str, max_rps: Option<u16>) -> AsanaClient {
         let https = hyper_tls::HttpsConnector::new();
         let client = hyper::Client::builder().build::<_, hyper::Body>(https);
-        AsanaClient { client, token }
+        let rate_limiter = max_rps.map(|rps| {
+            if rps == 0 || rps > 1000 {
+                panic!("max_rps must be > 0 and <= 1000");
+            }
+            let duration_millis = 1000u64 / rps as u64;
+            return Arc::new(futures::lock::Mutex::new(tokio::time::interval(
+                tokio::time::Duration::from_millis(duration_millis),
+            )));
+        });
+        AsanaClient {
+            client,
+            token,
+            rate_limiter,
+        }
     }
 
     pub async fn get_project(&self, project_gid: &str) -> AsanaProject {
@@ -141,21 +191,24 @@ impl<'a> AsanaClient<'a> {
         return project;
     }
 
-    pub async fn get_project_sections(&self, project_gid: &'a str) -> AsanaProjectSections<'a> {
-        let mut sections: Vec<AsanaEmbeddedObject> = Vec::with_capacity(10 as usize);
+    pub async fn get_project_sections(&self, project_gid: &str) -> AsanaProjectSections {
+        let mut sections: Vec<AsanaSection> = Vec::with_capacity(10 as usize);
         let mut offset = None;
         loop {
             let uri_str = match offset {
-                None => format!("{}/projects/{}/sections?limit=100", BASE_URL, project_gid),
+                None => format!(
+                    "{}/projects/{}/sections?opt_fields=this.name&limit=100",
+                    BASE_URL, project_gid
+                ),
                 Some(offset) => format!(
-                    "{}/projects/{}/sections?limit=100&offset={}",
+                    "{}/projects/{}/sections?opt_fields=this.name&limit=100&offset={}",
                     BASE_URL, project_gid, offset
                 ),
             };
 
             log::debug!("get_project_sections: project={}", project_gid);
             let body_str = self.get_response_as_string(&uri_str).await.unwrap();
-            let page: AsanaPage<AsanaEmbeddedObject> =
+            let page: AsanaPage<AsanaSection> =
                 serde_json::from_str(&body_str).unwrap_or_else(|err| {
                     panic!(
                         "get_project_sections: Could not parse page: uri={} response.body={} error={}",
@@ -173,28 +226,36 @@ impl<'a> AsanaClient<'a> {
             }
         }
         return AsanaProjectSections {
-            project_gid,
+            project_gid: project_gid.to_owned(),
             sections,
         };
     }
 
-    pub async fn get_project_task_gids(&self, project_gid: &'a str) -> AsanaProjectTaskGids<'a> {
+    pub async fn get_project_task_gids(
+        &self,
+        project_gid: &str,
+        from: &DateTime<Utc>,
+    ) -> AsanaProjectTaskGids {
         let mut task_gids: Vec<String> = Vec::with_capacity(100 as usize);
+        let completed_since_str = query_encode(&from.to_rfc3339());
+
         let mut offset = None;
         loop {
             let uri_str = match offset {
                 None => format!(
-                    "{}/projects/{}/tasks?opt_fields=this.gid&limit=100",
-                    BASE_URL, project_gid
+                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=100",
+                    BASE_URL,
+                    project_gid,
+                    completed_since_str
                 ),
                 Some(offset) => format!(
-                    "{}/projects/{}/tasks?opt_fields=this.gid&limit=100&offset={}",
-                    BASE_URL, project_gid, offset
+                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=100&offset={}",
+                    BASE_URL, project_gid, completed_since_str, offset
                 ),
             };
             log::debug!("get_project_task_gids: project={}", project_gid);
             let body_str = self.get_response_as_string(&uri_str).await.unwrap();
-            let page: AsanaPage<AsanaEmbeddedObject> =
+            let page: AsanaPage<AsanaTaskCompact> =
                 serde_json::from_str(&body_str).unwrap_or_else(|err| {
                     panic!(
                         "get_project_task_gids: Could not parse page: uri={} response.body={} error={}",
@@ -212,7 +273,7 @@ impl<'a> AsanaClient<'a> {
             }
         }
         return AsanaProjectTaskGids {
-            project_gid,
+            project_gid: project_gid.to_owned(),
             task_gids,
         };
     }
@@ -234,7 +295,7 @@ impl<'a> AsanaClient<'a> {
         return task;
     }
 
-    pub async fn get_task_stories(&self, task_gid: &'a str) -> AsanaTaskStories<'a> {
+    pub async fn get_task_stories(&self, task_gid: &str) -> AsanaTaskStories {
         let mut stories = Vec::new();
         let opt_fields = "this.(created_at|resource_subtype|text)";
         let mut offset = None;
@@ -268,7 +329,10 @@ impl<'a> AsanaClient<'a> {
                 break;
             }
         }
-        return AsanaTaskStories { task_gid, stories };
+        return AsanaTaskStories {
+            task_gid: task_gid.to_owned(),
+            stories,
+        };
     }
 
     pub async fn get_user(&self, user_gid: &str) -> AsanaUser {
@@ -289,7 +353,9 @@ impl<'a> AsanaClient<'a> {
                     });
                 return user.data;
             }
-            Err(Missing) => AsanaUser::missing_user(user_gid),
+            Err(m) => match m {
+                AsanaError::Missing => AsanaUser::missing_user(user_gid),
+            },
         }
     }
 
@@ -302,15 +368,19 @@ impl<'a> AsanaClient<'a> {
             .header(header::AUTHORIZATION, &auth_header_val_str)
             .body(Body::empty())
             .expect("Request Creation Error");
+
+        if let Some(rate_limiter) = &self.rate_limiter {
+            rate_limiter.lock().await.tick().await;
+        }
         let mut response = self.client.request(request).await.expect("HTTP GET error");
 
         let length = Self::get_content_length(&uri_str, &response);
-        log::debug!(
-            "get_response_as_string: uri={} status={} content-length={:?}",
-            uri_str,
-            response.status(),
-            length
-        );
+        // log::debug!(
+        //     "get_response_as_string: uri={} status={} content-length={:?}",
+        //     uri_str,
+        //     response.status(),
+        //     length
+        // );
 
         if response.status().eq(&hyper::StatusCode::NOT_FOUND) {
             return Err(AsanaError::Missing);
