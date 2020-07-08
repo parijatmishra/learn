@@ -62,6 +62,13 @@ fn process_command_line() -> (String, String) {
                 .takes_value(true)
                 .help("path of file containing an Asana Personal Access Token"),
         )
+        .arg(
+            Arg::with_name("output-file")
+                .short("o")
+                .long("output-file")
+                .takes_value(true)
+                .help("Output file (JSON data)"),
+        )
         .get_matches();
     let config_file_str = matches
         .value_of("config-file")

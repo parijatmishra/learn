@@ -12,6 +12,7 @@ pub struct MyProjectConfig {
     pub gid: String,
     pub horizon: DateTime<Utc>,
     pub cfd_states: Vec<String>,
+    pub done_states: Vec<String>,
 }
 
 pub fn parse_config(config_str: &str) -> MyConfig {

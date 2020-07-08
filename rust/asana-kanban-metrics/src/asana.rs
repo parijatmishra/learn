@@ -197,11 +197,11 @@ impl<'a> AsanaClient<'a> {
         loop {
             let uri_str = match offset {
                 None => format!(
-                    "{}/projects/{}/sections?opt_fields=this.name&limit=100",
+                    "{}/projects/{}/sections?opt_fields=this.name&limit=20",
                     BASE_URL, project_gid
                 ),
                 Some(offset) => format!(
-                    "{}/projects/{}/sections?opt_fields=this.name&limit=100&offset={}",
+                    "{}/projects/{}/sections?opt_fields=this.name&limit=20&offset={}",
                     BASE_URL, project_gid, offset
                 ),
             };
@@ -243,13 +243,11 @@ impl<'a> AsanaClient<'a> {
         loop {
             let uri_str = match offset {
                 None => format!(
-                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=100",
-                    BASE_URL,
-                    project_gid,
-                    completed_since_str
+                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=20",
+                    BASE_URL, project_gid, completed_since_str
                 ),
                 Some(offset) => format!(
-                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=100&offset={}",
+                    "{}/tasks?project={}&completed_since={}&opt_fields=this.gid&limit=20&offset={}",
                     BASE_URL, project_gid, completed_since_str, offset
                 ),
             };
@@ -302,11 +300,11 @@ impl<'a> AsanaClient<'a> {
         loop {
             let uri_str = match offset {
                 None => format!(
-                    "{}/tasks/{}/stories?opt_fields={}&limit=100",
+                    "{}/tasks/{}/stories?opt_fields={}&limit=20",
                     BASE_URL, task_gid, opt_fields
                 ),
                 Some(offset) => format!(
-                    "{}/tasks/{}/stories?opt_fields={}&limit=100&offset={}",
+                    "{}/tasks/{}/stories?opt_fields={}&limit=20&offset={}",
                     BASE_URL, task_gid, opt_fields, offset
                 ),
             };
