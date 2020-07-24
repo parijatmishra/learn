@@ -80,7 +80,7 @@ fn process_command_line() -> (String, String) {
 }
 
 pub async fn get_data(token: &str, config: &MyConfig) {
-    let client = AsanaClient::new(token, Some(7));
+    let client = AsanaClient::new(token, Some(2));
 
     let (asana_projects, asana_project_sections, asana_project_task_gids) =
         get_asana_data_projects(&client, config).await;
